@@ -88,7 +88,25 @@ def safe_residue_to_aa(residue) -> str:
     return "X"
 
 
-def extract_chain_sequences_and_ca(cif_path: Path) -> Dict[str, Dict]:
+def extract_chain_sequences_and_backbone(cif_path: Path) -> Dict[str, Dict]:
+    """
+    Extract per-chain sequence plus backbone atom coordinates (N, CA, C).
+
+    Returns
+    -------
+    out[chain_id] = {
+        "sequence": str,
+        "coords_n":  np.ndarray [L, 3],
+        "coords_ca": np.ndarray [L, 3],
+        "coords_c":  np.ndarray [L, 3],
+    }
+
+    Notes
+    -----
+    - One row per polymer residue.
+    - Missing atoms are filled with NaN.
+    - Hetero residues are skipped.
+    """
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure(cif_path.stem, str(cif_path))
 
@@ -97,7 +115,9 @@ def extract_chain_sequences_and_ca(cif_path: Path) -> Dict[str, Dict]:
 
     for chain in first_model:
         seq_chars = []
-        ca_coords = []
+        coords_n = []
+        coords_ca = []
+        coords_c = []
 
         for residue in chain:
             hetflag = residue.id[0]
@@ -107,19 +127,32 @@ def extract_chain_sequences_and_ca(cif_path: Path) -> Dict[str, Dict]:
             aa = safe_residue_to_aa(residue)
             seq_chars.append(aa)
 
-            if "CA" in residue:
-                ca_coords.append(residue["CA"].coord)
+            if "N" in residue:
+                coords_n.append(residue["N"].coord)
             else:
-                ca_coords.append([np.nan, np.nan, np.nan])
+                coords_n.append([np.nan, np.nan, np.nan])
+
+            if "CA" in residue:
+                coords_ca.append(residue["CA"].coord)
+            else:
+                coords_ca.append([np.nan, np.nan, np.nan])
+
+            if "C" in residue:
+                coords_c.append(residue["C"].coord)
+            else:
+                coords_c.append([np.nan, np.nan, np.nan])
 
         if len(seq_chars) == 0:
             continue
 
         out[chain.id] = {
             "sequence": "".join(seq_chars),
-            "coords_ca": np.array(ca_coords, dtype=np.float32)}
+            "coords_n": np.array(coords_n, dtype=np.float32),
+            "coords_ca": np.array(coords_ca, dtype=np.float32),
+            "coords_c": np.array(coords_c, dtype=np.float32)}
 
     return out
+
 
 
 def sequence_identity(a: str, b: str) -> float:
@@ -191,7 +224,6 @@ class FoldbenchProteinDataset(Dataset):
             chain = q["chains"][0]
             target_seq = chain["sequence"]
 
-            # cadena elegida para la carpeta MSA
             chosen_chain_for_msa = None
             for cid in chain["chain_ids"]:
                 if isinstance(cid, str) and len(cid) == 1 and cid.isalpha():
@@ -216,7 +248,7 @@ class FoldbenchProteinDataset(Dataset):
                 continue
 
             try:
-                chain_data = extract_chain_sequences_and_ca(cif_file)
+                chain_data = extract_chain_sequences_and_backbone(cif_file)
                 match = match_target_to_chain(
                     target_seq=target_seq,
                     chain_data=chain_data,
@@ -231,7 +263,6 @@ class FoldbenchProteinDataset(Dataset):
                 continue
 
             matched_chain_id, match_identity = match
-            coords_ca_np = chain_data[matched_chain_id]["coords_ca"]
             matched_seq = chain_data[matched_chain_id]["sequence"]
 
             rows.append({
@@ -272,30 +303,56 @@ class FoldbenchProteinDataset(Dataset):
         seq_tokens = tokenize_sequence(target_sequence)
 
         msa_seqs = read_a3m(msa_file, max_msa_seqs=self.max_msa_seqs)
-        msa_seqs = pad_or_crop_msa(msa_seqs, target_len=len(target_sequence), max_msa_seqs=self.max_msa_seqs)
+        msa_seqs = pad_or_crop_msa(
+            msa_seqs,
+            target_len=len(target_sequence),
+            max_msa_seqs=self.max_msa_seqs
+        )
         msa_tokens = tokenize_msa(msa_seqs)
         msa_mask = (msa_tokens != AA_VOCAB["-"]).float()
 
-        chain_data = extract_chain_sequences_and_ca(cif_file)
+        chain_data = extract_chain_sequences_and_backbone(cif_file)
+
+        coords_n_np  = chain_data[matched_chain_id]["coords_n"]
         coords_ca_np = chain_data[matched_chain_id]["coords_ca"]
+        coords_c_np  = chain_data[matched_chain_id]["coords_c"]
 
-        # Crear la máscara de residuos válidos (donde NO hay NaNs)
+        # máscaras antes de reemplazar NaNs
+        valid_n  = ~np.isnan(coords_n_np).any(axis=1)
         valid_ca = ~np.isnan(coords_ca_np).any(axis=1)
+        valid_c  = ~np.isnan(coords_c_np).any(axis=1)
+
         valid_res_mask = torch.tensor(valid_ca, dtype=torch.float32)
+        valid_backbone_mask = torch.tensor(valid_n & valid_ca & valid_c, dtype=torch.float32)
 
-        # Limpiar NaNs convirtiéndolos a ceros para que PyTorch no explote a NaN
+        # reemplazar NaNs por 0 para evitar NaNs en PyTorch
+        coords_n_np  = np.nan_to_num(coords_n_np, nan=0.0)
         coords_ca_np = np.nan_to_num(coords_ca_np, nan=0.0)
-        coords_ca = torch.tensor(coords_ca_np, dtype=torch.float32)
+        coords_c_np  = np.nan_to_num(coords_c_np, nan=0.0)
 
-        L = min(len(seq_tokens), coords_ca.shape[0], msa_tokens.shape[1])
+        coords_n  = torch.tensor(coords_n_np, dtype=torch.float32)
+        coords_ca = torch.tensor(coords_ca_np, dtype=torch.float32)
+        coords_c  = torch.tensor(coords_c_np, dtype=torch.float32)
+
+        L = min(
+            len(seq_tokens),
+            coords_ca.shape[0],
+            coords_n.shape[0],
+            coords_c.shape[0],
+            msa_tokens.shape[1]
+        )
 
         seq_tokens = seq_tokens[:L]
         msa_tokens = msa_tokens[:, :L]
         msa_mask = msa_mask[:, :L]
-        coords_ca = coords_ca[:L]
-        valid_res_mask = valid_res_mask[:L]
 
-        # Calcular el mapa de distancias
+        coords_n = coords_n[:L]
+        coords_ca = coords_ca[:L]
+        coords_c = coords_c[:L]
+
+        valid_res_mask = valid_res_mask[:L]
+        valid_backbone_mask = valid_backbone_mask[:L]
+
         dist_map = pairwise_distances(coords_ca)
 
         return {
@@ -307,75 +364,12 @@ class FoldbenchProteinDataset(Dataset):
             "seq_tokens": seq_tokens,
             "msa_tokens": msa_tokens,
             "msa_mask": msa_mask,
-            "coords_ca": coords_ca,
-            "dist_map": dist_map,
-            "valid_res_mask": valid_res_mask}
+            "coords_n": coords_n,                       # [L,3]
+            "coords_ca": coords_ca,                     # [L,3]
+            "coords_c": coords_c,                       # [L,3]
+            "dist_map": dist_map,                       # [L,L]
+            "valid_res_mask": valid_res_mask,           # [L]
+            "valid_backbone_mask": valid_backbone_mask, # [L]
+        }
     
 
-def collate_proteins(batch):
-    B = len(batch)
-    max_L = max(item["seq_tokens"].shape[0] for item in batch)
-    max_Nmsa = max(item["msa_tokens"].shape[0] for item in batch)
-
-    seq_pad_token = AA_VOCAB["-"]
-    msa_pad_token = AA_VOCAB["-"]
-
-    seq_tokens = torch.full((B, max_L), seq_pad_token, dtype=torch.long)
-    seq_mask = torch.zeros((B, max_L), dtype=torch.float32)
-
-    msa_tokens = torch.full((B, max_Nmsa, max_L), msa_pad_token, dtype=torch.long)
-    msa_mask = torch.zeros((B, max_Nmsa, max_L), dtype=torch.float32)
-
-    coords_ca = torch.zeros((B, max_L, 3), dtype=torch.float32)
-    valid_res_mask = torch.zeros((B, max_L), dtype=torch.float32)
-
-    dist_map = torch.zeros((B, max_L, max_L), dtype=torch.float32)
-    pair_mask = torch.zeros((B, max_L, max_L), dtype=torch.float32)
-
-    ids = []
-    msa_chain_ids = []
-    matched_chain_ids = []
-    sequence_strs = []
-    match_identity = torch.zeros(B, dtype=torch.float32)
-
-    for i, item in enumerate(batch):
-        L = item["seq_tokens"].shape[0]
-        N = item["msa_tokens"].shape[0]
-
-        seq_tokens[i, :L] = item["seq_tokens"]
-        seq_mask[i, :L] = 1.0
-
-        msa_tokens[i, :N, :L] = item["msa_tokens"]
-        msa_mask[i, :N, :L] = item["msa_mask"]
-
-        coords_ca[i, :L] = item["coords_ca"]
-        valid_res_mask[i, :L] = item["valid_res_mask"]
-
-        dist_map[i, :L, :L] = item["dist_map"]
-
-        # máscara pairwise real
-        pair_mask[i, :L, :L] = (
-            item["valid_res_mask"][:, None] * item["valid_res_mask"][None, :]
-        )
-
-        ids.append(item["id"])
-        msa_chain_ids.append(item["msa_chain_id"])
-        matched_chain_ids.append(item["matched_chain_id"])
-        sequence_strs.append(item["sequence_str"])
-        match_identity[i] = item["match_identity"]
-
-    return {
-        "id": ids,
-        "msa_chain_id": msa_chain_ids,
-        "matched_chain_id": matched_chain_ids,
-        "match_identity": match_identity,
-        "sequence_str": sequence_strs,
-        "seq_tokens": seq_tokens,         # [B, L]
-        "seq_mask": seq_mask,             # [B, L]
-        "msa_tokens": msa_tokens,         # [B, N_msa, L]
-        "msa_mask": msa_mask,             # [B, N_msa, L]
-        "coords_ca": coords_ca,           # [B, L, 3]
-        "dist_map": dist_map,             # [B, L, L]
-        "valid_res_mask": valid_res_mask, # [B, L]
-        "pair_mask": pair_mask,           # [B, L, L]
-    }

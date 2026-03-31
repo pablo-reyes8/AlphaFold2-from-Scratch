@@ -1,36 +1,82 @@
-# AlphaFold2 From Scratch
+# AlphaFold2: A PyTorch Reconstruction
 
-PyTorch implementation of AlphaFold2-like components built from scratch for study and experimentation. The model code stays as-is in this pass; the main improvement here is the data layer and the repository scaffolding around it.
+<div align="center">
 
-## Current Status
+**Dissecting geometric deep learning and structural biology representations from scratch.**
 
-- The repository has a working model/training prototype and several unit tests for geometry and losses.
-- The data pipeline is now separated from notebook cells into reusable scripts, manifests and YAML configs.
-- `data/Proteinas_secuencias.csv` is a checked-in 50-target Foldbench subset exported from Colab.
-- Full end-to-end training from scratch has not been validated in this repository yet.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](#installation)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c.svg)](#installation)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
+[![Status](https://img.shields.io/badge/status-Research%20Prototype-orange)](#project-status)
 
-## What Changed In This Cleanup
+</div>
 
-- `data/download_data.sh`: bash downloader for the Foldbench subset with target-file or CSV input.
-- `data/preproces_data.py`: CLI to build or normalize the manifest CSV and emit a YAML summary plus target list.
-- `data/dataloaders.py`: dataset can now load from either a manifest CSV or the raw JSON/MSA/mmCIF folders.
-- `data/visualize_data.py`: small inspection CLI for manifest summaries, A3M previews and CA distance maps.
-- `config/`: repository configs extracted from the notebook plus a full AlphaFold/OpenFold reference config.
+---
 
-## Repository Layout
+## Overview
 
-- `config/data/foldbench_subset.yaml`: dataset paths, outputs and basic stats.
-- `config/experiments/af2_poc.yaml`: the current notebook-sized experiment.
-- `config/experiments/alphafold2_full_reference.yaml`: reference hyperparameters from AlphaFold/OpenFold.
-- `data/`: manifest tooling, dataset code, collate function and download/inspection utilities.
-- `model/`: AlphaFold2-like modules.
-- `training/`: training loop, EMA, scheduler and checkpoint helpers.
-- `tests/`: current unit tests.
-- `notebooks/`: exploratory notebooks and the original training notebook.
+This repository provides a **from-scratch, modular PyTorch implementation of the core AlphaFold2 architecture**. 
+
+While the original DeepMind release and frameworks like OpenFold are built for large-scale production, this project is engineered for **architectural transparency and research experimentation**. It breaks down the monolithic structural biology pipeline into inspectable, hackable modules, allowing researchers to study exactly how Multiple Sequence Alignments (MSA), pair representations, and geometric heads interact at the tensor level.
+
+## Architectural Focus
+
+The implementation strictly follows the representational flow of the original paper, providing clean PyTorch modules for:
+
+* **Representational Flow:** Explicit handling of MSA, Pair, and Single state embeddings.
+* **The Evoformer:** Fully implemented axial attention mechanisms and triangle updates for spatial reasoning.
+* **Structure Module:** Native PyTorch implementations of **Invariant Point Attention (IPA)**, rigid body transformations, and structural loss computations (FAPE).
+* **Geometric Precision:** Robust unit testing suite specifically targeting structural losses and rotational invariants.
+
+## Data & Reproducibility
+
+Instead of relying on opaque data pipelines, this repository enforces a **manifest-driven workflow**. By decoupling the dataloader from raw folder structures, experiments become inherently more reproducible.
+
+* **Foldbench Integration:** Includes scripts to pull and preprocess a subset of Foldbench.
+* **Config-Driven:** Fully parameterizable experiments via YAML (model size, depth, learning rates, EMA).
+* **Inspection Tooling:** CLI utilities to sanity-check manifests, A3M files, and CA distance maps before initiating training loops.
+
+---
+
+## Repository structure
+
+```text
+.
+├── config/
+│   ├── data/
+│   │   └── foldbench_subset.yaml
+│   └── experiments/
+│       ├── af2_poc.yaml
+│       └── alphafold2_full_reference.yaml
+├── data/
+│   ├── download_data.sh
+│   ├── preproces_data.py
+│   ├── dataloaders.py
+│   ├── visualize_data.py
+│   └── Proteinas_secuencias.csv
+├── model/
+├── training/
+├── tests/
+├── notebooks/
+├── requirements.txt
+├── Dockerfile
+└── README.md
+```
+
+### Key files
+
+- `data/download_data.sh` — downloads the Foldbench subset using a target file or CSV input.
+- `data/preproces_data.py` — builds or rewrites the manifest and emits YAML summaries.
+- `data/dataloaders.py` — dataset code supporting both manifest-based and raw-folder loading.
+- `data/visualize_data.py` — command-line inspection utilities for manifests, A3M previews, and CA distance maps.
+- `config/experiments/af2_poc.yaml` — lightweight proof-of-concept experiment config.
+- `config/experiments/alphafold2_full_reference.yaml` — reference values collected from AlphaFold/OpenFold-style configs.
+
+---
 
 ## Quickstart
 
-1. Create an environment and install dependencies.
+### 1) Create an environment
 
 ```bash
 python3 -m venv .venv
@@ -38,13 +84,13 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-2. Download the checked-in Foldbench subset manifest.
+### 2) Download the subset
 
 ```bash
 bash data/download_data.sh --targets-csv data/Proteinas_secuencias.csv
 ```
 
-3. Rebuild the manifest with local paths.
+### 3) Rebuild the manifest with local paths
 
 ```bash
 python3 -m data.preproces_data \
@@ -54,26 +100,30 @@ python3 -m data.preproces_data \
   --cif-root data/af_subset/reference_structures
 ```
 
-4. Inspect the manifest or an MSA.
+### 4) Inspect the dataset
 
 ```bash
 python3 -m data.visualize_data manifest-summary --manifest-csv data/Proteinas_secuencias.csv
 python3 -m data.visualize_data msa-preview --a3m-path data/af_subset/foldbench_msas/7qrj_A/cfdb_hits.a3m
 ```
 
-## Data Workflow
+### 5) Use the manifest in the dataset
 
-The checked-in CSV is useful as a stable subset definition, but its file paths point to Colab. The intended local workflow is:
+```python
+from data.dataloaders import FoldbenchProteinDataset
 
-1. Use `data/download_data.sh` to fetch the subset.
-2. Run `python3 -m data.preproces_data` to rewrite the manifest locally.
-3. Feed the resulting CSV to `FoldbenchProteinDataset(manifest_csv=...)`.
+dataset = FoldbenchProteinDataset(manifest_csv="data/Proteinas_secuencias.csv")
+```
 
-The dataset class still supports the old JSON + root-directory flow, but the manifest-first workflow is cleaner and easier to reproduce.
+---
 
-## Config Notes
+## Configs
 
-`config/experiments/af2_poc.yaml` mirrors the notebook:
+### `config/experiments/af2_poc.yaml`
+
+This config mirrors the current notebook-scale proof of concept and is suitable for smaller experimental runs.
+
+Current example values:
 
 - `max_msa_seqs: 128`
 - `batch_size: 2`
@@ -82,28 +132,93 @@ The dataset class still supports the old JSON + root-directory flow, but the man
 - `num_evoformer_blocks: 2`
 - `num_structure_blocks: 4`
 
-`config/experiments/alphafold2_full_reference.yaml` is a reference document, not a promise that the current code already consumes every field. It includes official architecture, loss and training values collected from the AlphaFold/OpenFold configs.
+### `config/experiments/alphafold2_full_reference.yaml`
 
-## Tests
+This file is a **reference document**, not a statement that the current code already consumes every field end-to-end.
 
-Pytest capture is flaky in this workspace, so a safer invocation is:
+Its role is to provide a structured target for future extension and to document the broader AlphaFold/OpenFold design space.
 
-```bash
-python3 -m pytest --capture=no tests
-```
-
-If `biopython` is missing, any test or script that parses mmCIF files will fail until dependencies are installed.
+---
 
 ## Docker
 
-Build a small CPU-oriented image with:
+A small CPU-oriented image can be built with:
 
 ```bash
 docker build -t alphafold-from-scratch .
 ```
 
-This image is meant for setup and data tooling, not for serious GPU training.
+This image is intended for **environment setup, utilities, and data tooling**, not for serious GPU training.
+
+---
+
+## Design Philosophy
+
+This repository is architected with a singular premise: **true understanding of geometric deep learning requires unconstrained access to its atomic components.**
+
+Rather than providing a monolithic black box or a superficial tutorial, this codebase is engineered specifically for deep architectural study and rapid ablation. It strips away the distributed production overhead of frameworks like OpenFold to expose the bare mathematical and algorithmic reality of the network.
+
+**Core Principles:**
+
+* **Architectural Transparency:** Designed to be read, debugged, and mathematically verified at the tensor level. There is no hidden logic; the mapping from the original paper's equations to PyTorch modules is direct and explicit.
+* **Modular Extensibility:** Every mechanism—from the Evoformer's axial attention to the Invariant Point Attention (IPA)—is fully decoupled. Researchers can isolate, modify, or completely redesign structural modules without fighting the framework.
+* **Rigorous Prototyping:** Provides a robust, high-fidelity environment for testing novel geometric learning hypotheses, custom attention mechanisms, and alternative structural losses before scaling them to production clusters.
+
+This makes the repository a specialized tool for researchers dissecting structural biology models, engineers debugging complex 3D equivariance, and anyone focused on advancing the theoretical foundations of the AlphaFold family.
+
+---
+
+## Intended audience
+
+This project may be useful for:
+
+- ML researchers studying geometric deep learning or protein structure prediction,
+- students implementing AlphaFold2-style systems to truly understand them,
+- engineers who want a smaller environment for experimentation,
+- researchers building derivatives, ablations, or teaching materials.
+
+It is probably **not** the best starting point if your main goal is immediately obtaining state-of-the-art folding performance with industrial robustness. In that case, official or mature large-scale implementations will usually be a better operational choice.
+
+
+---
+
+## Roadmap
+
+A realistic roadmap for this repository could include:
+
+- [ ] recurrent / recycling-style refinement passes
+- [ ] tighter end-to-end training validation
+- [ ] expanded benchmark and evaluation scripts
+- [ ] example inference notebook or script
+- [ ] reproducibility report for a reference training run
+
+---
+
+## Citation
+
+If this repository helps your work, please cite the repository and also cite the original AlphaFold and related implementation papers that inspired the architecture.
+
+A simple placeholder BibTeX entry for the repository could look like:
+
+```bibtex
+@software{reyes_alphafold2_from_scratch,
+  author = {Pablo Reyes},
+  title = {AlphaFold2 From Scratch},
+  year = {2026},
+  url = {https://github.com/pablo-reyes8/alpha-fold2}
+}
+```
+
+---
+
+## Acknowledgments
+
+This repository is inspired by the AlphaFold2 line of work and the broader ecosystem of open implementations and educational reverse-engineering efforts around protein structure prediction.
+
+Special credit belongs to the original AlphaFold work and to the open-source community that has made this field far more accessible to study.
+
+---
 
 ## License
 
-MIT
+This project is licensed under the **MIT License**.

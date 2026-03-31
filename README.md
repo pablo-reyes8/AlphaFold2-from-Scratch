@@ -11,6 +11,8 @@
 
 </div>
 
+> **🚧 Development Status:** This repository is a living research environment under active development. We are currently iterating on core architectural modules, optimizing the geometric forward pass, and expanding our structural validation suite. Updates are frequent as we refine the implementation toward full end-to-end parity with the AlphaFold2 design space.
+
 ---
 
 ## Overview

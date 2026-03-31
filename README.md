@@ -26,13 +26,15 @@ This repository provides a **from-scratch, modular PyTorch implementation of the
 
 While the original DeepMind release and frameworks like OpenFold are built for large-scale production, this project is engineered for **architectural transparency and research experimentation**. It breaks down the monolithic structural biology pipeline into inspectable, hackable modules, allowing researchers to study exactly how Multiple Sequence Alignments (MSA), pair representations, and geometric heads interact at the tensor level.
 
-<p align="center">
-  <img src="assets/Ia_showcase_image.png" width="1000"/>
-</p>
 
 
 
 ## Architectural Focus
+
+<p align="center">
+  <img src="assets/Ia_showcase_image.png" width="1000"/>
+</p>
+
 
 The implementation strictly follows the representational flow of the original paper, providing clean PyTorch modules for:
 
@@ -40,6 +42,7 @@ The implementation strictly follows the representational flow of the original pa
 * **The Evoformer:** Fully implemented axial attention mechanisms and triangle updates for spatial reasoning.
 * **Structure Module:** Native PyTorch implementations of **Invariant Point Attention (IPA)**, rigid body transformations, and structural loss computations (FAPE).
 * **Geometric Precision:** Robust unit testing suite specifically targeting structural losses and rotational invariants.
+
 
 ## Data & Reproducibility
 

@@ -1,3 +1,10 @@
+"""Reproducibility helpers for Python, NumPy, and PyTorch.
+
+This module centralizes seed setup and deterministic-mode toggles so notebook
+experiments and scripted training runs can initialize randomness in a uniform
+and explicit way.
+"""
+
 import os
 import random
 import numpy as np

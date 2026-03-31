@@ -1,3 +1,10 @@
+"""MSA column attention used inside the Evoformer.
+
+This module mixes information across alignment rows at each residue position.
+It complements row attention with pair bias and helps propagate context through
+the MSA dimension of the model.
+"""
+
 import torch
 import torch.nn as nn
 import math

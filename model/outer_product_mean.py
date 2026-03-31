@@ -1,3 +1,10 @@
+"""Outer Product Mean update from MSA to pair representation.
+
+This file converts aggregated MSA statistics into pairwise features using an
+outer-product construction followed by a projection. It is the main bridge
+from the alignment stream into the pair stream inside the Evoformer.
+"""
+
 import torch
 import torch.nn as nn
 

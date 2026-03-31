@@ -1,3 +1,10 @@
+"""Torsion prediction head operating on structure representations.
+
+This module predicts normalized torsion-angle vectors from the initial and
+final single representations. It provides the angle supervision branch used by
+the main model and by the AlphaFold-style loss.
+"""
+
 import torch
 import torch.nn as nn
 

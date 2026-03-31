@@ -1,3 +1,10 @@
+"""Single-representation transition and backbone-update layers.
+
+This file contains the feed-forward transition used inside the structure module
+and the rigid-frame update head that predicts rotation and translation deltas
+for each residue during structural refinement.
+"""
+
 import torch
 import torch.nn as nn
 import math

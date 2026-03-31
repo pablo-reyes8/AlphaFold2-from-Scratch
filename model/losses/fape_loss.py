@@ -1,3 +1,10 @@
+"""Frame Aligned Point Error loss for structural supervision.
+
+This file measures predicted point errors after expressing coordinates in local
+backbone frames. The resulting FAPE signal is one of the main geometric losses
+used to supervise frame and position predictions.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

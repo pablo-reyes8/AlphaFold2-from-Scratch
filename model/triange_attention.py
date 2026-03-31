@@ -1,3 +1,10 @@
+"""Triangle attention updates for pair representations.
+
+This module implements the starting-node and ending-node triangle attention
+operations that refine pair features using third-residue context. They are core
+geometric mixing operators inside the Evoformer pair stack.
+"""
+
 import math
 import torch
 import torch.nn as nn

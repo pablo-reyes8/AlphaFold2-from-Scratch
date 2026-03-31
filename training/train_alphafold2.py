@@ -1,3 +1,10 @@
+"""High-level training orchestration for the AlphaFold2-like model.
+
+This file coordinates resuming, epoch iteration, checkpointing, logging, and
+interaction with the per-epoch training routine. It is the main entry point for
+scripted training outside the notebook environment.
+"""
+
 import torch 
 import torch.nn as nn 
 from training.chekpoints import * 

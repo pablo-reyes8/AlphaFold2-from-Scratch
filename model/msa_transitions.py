@@ -1,3 +1,10 @@
+"""Position-wise transition network for MSA activations.
+
+This module provides the feed-forward transition applied after MSA attention
+updates. It is the MSA counterpart of the transition blocks commonly used in
+transformer-style architectures and Evoformer implementations.
+"""
+
 import torch
 import torch.nn as nn
 

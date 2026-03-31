@@ -1,3 +1,10 @@
+"""Higher-level AlphaFold-oriented metric wrappers.
+
+This module builds on the lower-level geometry helpers to expose convenient
+metric functions such as RMSD for AlphaFold-style predictions. It is kept
+separate from the core utilities to simplify call sites.
+"""
+
 import torch
 from training.metrics_utils import *
 

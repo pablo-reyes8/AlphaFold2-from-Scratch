@@ -1,3 +1,9 @@
+"""MSA row attention with pair bias for the Evoformer trunk.
+
+This file implements the row-wise attention update that uses the current pair
+representation as an additive bias. It is one of the main information pathways
+from pair features back into the MSA stream.
+"""
 
 import math
 import torch

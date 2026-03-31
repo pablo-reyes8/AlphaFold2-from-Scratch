@@ -1,3 +1,10 @@
+"""Fast structure metrics computed from predicted and true coordinates.
+
+This module exposes efficient batched RMSD, TM-score, and GDT-TS calculations
+for logging during training. The goal is to provide cheap structural signals
+without coupling the training loop to notebook utilities.
+"""
+
 import torch 
 from training.metrics_utils import *
 

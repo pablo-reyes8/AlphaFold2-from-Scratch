@@ -1,38 +1,34 @@
+from __future__ import annotations
+
 import torch
+
+from training.efficent_metrics import compute_structure_metrics
+
 
 torch.manual_seed(0)
 
-def test_structure_metrics():
-    B, L = 2, 20
-    x_true = torch.randn(B, L, 3)
-    mask = torch.ones(B, L)
 
-    # perfect prediction
-    x_pred = x_true.clone()
-    metrics = compute_structure_metrics(x_pred, x_true, mask, align=True)
+def test_structure_metrics_for_perfect_prediction():
+    batch_size, length = 2, 20
+    coords_true = torch.randn(batch_size, length, 3)
+    mask = torch.ones(batch_size, length)
 
-    print("Perfect prediction:")
-    print("RMSD:", metrics["rmsd"].item())
-    print("TM-score:", metrics["tm_score"].item())
-    print("GDT-TS:", metrics["gdt_ts"].item())
+    metrics = compute_structure_metrics(coords_true, coords_true, mask, align=True)
 
-    assert metrics["rmsd"].item() < 1e-3, "RMSD should be ~0"
-    assert metrics["tm_score"].item() > 0.999, "TM-score should be ~1"
-    assert metrics["gdt_ts"].item() > 0.999, "GDT-TS should be ~1"
+    assert metrics["rmsd"].item() < 1e-3
+    assert metrics["tm_score"].item() > 0.999
+    assert metrics["gdt_ts"].item() > 0.999
 
-    # perturbed prediction
-    x_pred2 = x_true + 0.8 * torch.randn_like(x_true)
-    metrics2 = compute_structure_metrics(x_pred2, x_true, mask, align=True)
 
-    print("\nPerturbed prediction:")
-    print("RMSD:", metrics2["rmsd"].item())
-    print("TM-score:", metrics2["tm_score"].item())
-    print("GDT-TS:", metrics2["gdt_ts"].item())
+def test_structure_metrics_degrade_for_noisy_prediction():
+    batch_size, length = 2, 20
+    coords_true = torch.randn(batch_size, length, 3)
+    mask = torch.ones(batch_size, length)
 
-    assert metrics2["rmsd"].item() > metrics["rmsd"].item(), "RMSD should worsen"
-    assert metrics2["tm_score"].item() < metrics["tm_score"].item(), "TM-score should worsen"
-    assert metrics2["gdt_ts"].item() < metrics["gdt_ts"].item(), "GDT-TS should worsen"
+    perfect = compute_structure_metrics(coords_true, coords_true, mask, align=True)
+    noisy_coords = coords_true + 0.8 * torch.randn_like(coords_true)
+    noisy = compute_structure_metrics(noisy_coords, coords_true, mask, align=True)
 
-    print("\nAll metric tests passed.")
-
-test_structure_metrics()
+    assert noisy["rmsd"].item() > perfect["rmsd"].item()
+    assert noisy["tm_score"].item() < perfect["tm_score"].item()
+    assert noisy["gdt_ts"].item() < perfect["gdt_ts"].item()

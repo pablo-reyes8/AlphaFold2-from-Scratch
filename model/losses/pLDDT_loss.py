@@ -1,3 +1,10 @@
+"""Per-residue pLDDT supervision built from coordinate agreement.
+
+This module approximates lDDT targets from predicted and true coordinates,
+discretizes those scores into bins, and applies cross-entropy to the pLDDT
+head outputs used as a confidence auxiliary loss.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

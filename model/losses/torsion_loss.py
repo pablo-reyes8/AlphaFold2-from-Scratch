@@ -1,3 +1,10 @@
+"""Torsion-angle supervision for predicted angle vectors.
+
+This file contains the auxiliary torsion loss that compares predicted and true
+sin-cos angle encodings under a residue and torsion mask. It is intentionally
+simple and plugs into the global AlphaFold-style loss dictionary.
+"""
+
 import torch 
 import torch.nn as nn
 

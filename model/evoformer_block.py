@@ -1,3 +1,10 @@
+"""Single Evoformer block used inside the stacked trunk.
+
+This file groups the row attention, column attention, transition, outer
+product mean, triangle attention, and triangle multiplication updates that
+together refine the MSA and pair representations in one block.
+"""
+
 import torch
 import torch.nn as nn
 

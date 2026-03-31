@@ -1,3 +1,10 @@
+"""Distogram supervision used by the AlphaFold-style loss.
+
+This module discretizes true pairwise distances into bins and applies
+cross-entropy against distogram logits predicted from the pair representation.
+It provides one of the auxiliary geometric objectives in training.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

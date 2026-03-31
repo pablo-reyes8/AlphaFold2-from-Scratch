@@ -1,3 +1,10 @@
+"""Composite AlphaFold-style loss orchestration.
+
+This module combines FAPE, distogram, pLDDT, and torsion supervision into the
+single loss dictionary consumed by the training loop. It acts as the contract
+between model outputs and the structural targets prepared by the dataloader.
+"""
+
 import torch 
 import torch.nn as nn
 

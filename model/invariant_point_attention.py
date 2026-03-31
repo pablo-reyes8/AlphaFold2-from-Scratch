@@ -1,3 +1,10 @@
+"""Invariant Point Attention implementation for structure updates.
+
+This file contains the IPA block that mixes single and pair representations in
+a geometry-aware way using frames and point projections. The structure module
+uses it as its main attention mechanism.
+"""
+
 import math
 import torch.nn.functional as F
 import torch

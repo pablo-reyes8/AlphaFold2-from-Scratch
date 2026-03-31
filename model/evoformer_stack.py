@@ -1,3 +1,10 @@
+"""Stacked Evoformer trunk for iterative representation refinement.
+
+This module repeats the Evoformer block multiple times and provides the higher
+level interface used by the main model. It is the central trunk that updates
+MSA features and pair features before structure prediction.
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

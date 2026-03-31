@@ -1,3 +1,10 @@
+"""Optimizer parameter grouping and warmup-cosine scheduling.
+
+This module defines how trainable parameters are split into decay and
+no-decay groups and provides the step-based scheduler used by the custom
+training loop in this repository.
+"""
+
 import math
 from typing import Dict, Any, Optional, List
 

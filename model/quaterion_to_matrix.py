@@ -1,3 +1,10 @@
+"""Quaternion and rigid-frame utilities for structure updates.
+
+This module converts quaternion parametrizations into rotation matrices and
+composes rigid transformations. The structure code depends on these helpers to
+maintain valid frame geometry during iterative refinement.
+"""
+
 import torch
 
 def quaternion_to_rotation_matrix(q: torch.Tensor) -> torch.Tensor:

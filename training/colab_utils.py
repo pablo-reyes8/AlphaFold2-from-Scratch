@@ -1,3 +1,10 @@
+"""Small environment helpers for notebooks and Colab workflows.
+
+The functions in this file format time, print console separators, detect Colab,
+and optionally mirror checkpoints to Google Drive. They keep Colab-specific
+logic out of the core training loop.
+"""
+
 import os
 import sys
 import shutil

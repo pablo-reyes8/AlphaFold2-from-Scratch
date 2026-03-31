@@ -1,3 +1,10 @@
+"""Triangle multiplicative updates for pair representations.
+
+This file implements the outgoing and incoming triangle multiplication blocks
+used by the pair stack. These operators capture transitive interactions across
+triplets of residues and are standard in AlphaFold-style architectures.
+"""
+
 import torch
 import torch.nn as nn
 import math

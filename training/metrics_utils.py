@@ -1,3 +1,10 @@
+"""Low-level geometry and masking utilities for metric computation.
+
+The functions in this file implement masked reductions, centering, Kabsch
+alignment, and related tensor operations reused by the higher-level structural
+metrics that appear during evaluation and logging.
+"""
+
 import math
 import torch
 import torch.nn.functional as F

@@ -1,3 +1,9 @@
+"""Prediction heads built on top of the shared AlphaFold representations.
+
+The classes in this module project internal sequence or pair features into the
+single representation, pLDDT logits, and distogram logits used by the model
+output dictionary and downstream loss computation.
+"""
 
 import torch
 import torch.nn as nn

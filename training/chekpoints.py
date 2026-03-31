@@ -1,3 +1,10 @@
+"""Checkpoint save and restore utilities for training runs.
+
+This module handles model serialization, optimizer and scheduler state,
+tracking metadata such as epochs and monitored metrics, and helper logic for
+maintaining last and best checkpoints during training.
+"""
+
 import os
 import random
 from pathlib import Path

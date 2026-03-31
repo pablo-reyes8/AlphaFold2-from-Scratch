@@ -1,3 +1,10 @@
+"""Exponential moving average utilities for model parameters.
+
+This file keeps a shadow copy of trainable weights, supports swapping EMA
+weights into the live model for evaluation, and provides health checks and
+state-dict helpers used by the checkpoint and training code.
+"""
+
 import copy
 from contextlib import contextmanager
 from typing import Optional

@@ -1,3 +1,10 @@
+"""Helper functions shared across structural loss modules.
+
+This module provides vector normalization and canonical backbone-frame
+construction from N, CA, and C coordinates. The full loss orchestrator uses
+these utilities to convert raw coordinates into rigid frames.
+"""
+
 import torch
 
 def normalize_vec(v: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:

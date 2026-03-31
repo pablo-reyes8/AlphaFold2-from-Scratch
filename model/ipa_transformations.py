@@ -1,3 +1,10 @@
+"""Rigid-frame coordinate transformation helpers for IPA and structure code.
+
+The functions defined here move points between local and global frames and are
+shared by the structure module, FAPE loss, and full model forward pass when
+reconstructing backbone coordinates from local templates.
+"""
+
 import torch
 
 def apply_transform(R: torch.Tensor, t: torch.Tensor, x: torch.Tensor) -> torch.Tensor:

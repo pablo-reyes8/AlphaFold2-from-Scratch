@@ -1,62 +1,109 @@
-import torch 
-from model.losses.fape_loss import * 
-from model.losses.pLDDT_loss import * 
-from model.losses.distogram_loss import * 
-from model.losses.torsion_loss import * 
-from model.losses.loss_helpers import *
+from __future__ import annotations
 
-torch.manual_seed(7)
+import torch
 
-def test_fape_loss():
-    B, L = 2, 10
+from model.losses.distogram_loss import DistogramLoss
+from model.losses.fape_loss import FAPELoss
+from model.losses.pLDDT_loss import PlddtLoss
+from model.losses.torsion_loss import TorsionLoss
 
-    # True frames
-    R_true = torch.eye(3).view(1, 1, 3, 3).repeat(B, L, 1, 1)
-    t_true = torch.randn(B, L, 3)
 
-    # PoC: x_true = C_alpha coords = t_true
-    x_true = t_true.clone()
+def test_fape_loss_perfect_prediction_is_near_zero():
+    batch_size, length = 2, 10
+    rotation_true = torch.eye(3).view(1, 1, 3, 3).repeat(batch_size, length, 1, 1)
+    translation_true = torch.randn(batch_size, length, 3)
+    coords_true = translation_true.clone()
 
-    # Pred identical to true
-    R_pred = R_true.clone()
-    t_pred = t_true.clone()
-    x_pred = x_true.clone()
-
-    mask = torch.ones(B, L)
+    mask = torch.ones(batch_size, length)
     mask[0, -2:] = 0.0
 
     loss_fn = FAPELoss(length_scale=10.0, clamp_distance=10.0)
-    loss = loss_fn(R_pred, t_pred, x_pred, R_true, t_true, x_true, mask=mask)
+    loss = loss_fn(
+        rotation_true,
+        translation_true,
+        coords_true,
+        rotation_true,
+        translation_true,
+        coords_true,
+        mask=mask,
+    )
 
-    print("FAPE perfect-prediction loss:", loss.item())
-    assert torch.isfinite(loss), "FAPE loss is not finite"
-    assert loss.item() < 2e-5, "FAPE should be near 0 for perfect prediction"
-
-    # perturb prediction
-    t_pred2 = t_true + 0.5 * torch.randn(B, L, 3)
-    x_pred2 = t_pred2.clone()
-    loss2 = loss_fn(R_pred, t_pred2, x_pred2, R_true, t_true, x_true, mask=mask)
-
-    print("FAPE perturbed loss:", loss2.item())
-    assert loss2.item() > loss.item(), "Perturbed FAPE should be larger"
+    assert torch.isfinite(loss)
+    assert loss.item() < 2e-5
 
 
-def test_distogram_loss():
-    B, L, num_bins = 2, 12, 64
-    x_true = torch.randn(B, L, 3)
-    mask = torch.ones(B, L)
+def test_fape_loss_increases_with_perturbation():
+    batch_size, length = 2, 10
+    rotation_true = torch.eye(3).view(1, 1, 3, 3).repeat(batch_size, length, 1, 1)
+    translation_true = torch.randn(batch_size, length, 3)
+    coords_true = translation_true.clone()
+    mask = torch.ones(batch_size, length)
+
+    loss_fn = FAPELoss(length_scale=10.0, clamp_distance=10.0)
+    perfect = loss_fn(
+        rotation_true,
+        translation_true,
+        coords_true,
+        rotation_true,
+        translation_true,
+        coords_true,
+        mask=mask,
+    )
+
+    translation_pred = translation_true + 0.5 * torch.randn(batch_size, length, 3)
+    coords_pred = translation_pred.clone()
+    perturbed = loss_fn(
+        rotation_true,
+        translation_pred,
+        coords_pred,
+        rotation_true,
+        translation_true,
+        coords_true,
+        mask=mask,
+    )
+
+    assert perturbed.item() > perfect.item()
+
+
+def test_distogram_loss_returns_finite_scalar():
+    logits = torch.randn(2, 12, 12, 64)
+    coords_true = torch.randn(2, 12, 3)
+    mask = torch.ones(2, 12)
     mask[1, -3:] = 0.0
 
-    logits = torch.randn(B, L, L, num_bins)
+    loss = DistogramLoss(num_bins=64, min_bin=2.0, max_bin=22.0)(
+        logits,
+        coords_true,
+        mask=mask,
+    )
 
-    loss_fn = DistogramLoss(num_bins=num_bins, min_bin=2.0, max_bin=22.0)
-    loss = loss_fn(logits, x_true, mask=mask)
-
-    print("Distogram loss:", loss.item())
-    assert torch.isfinite(loss), "Distogram loss is not finite"
-    assert loss.ndim == 0, "Distogram loss should be scalar"
+    assert torch.isfinite(loss)
+    assert loss.ndim == 0
 
 
-test_fape_loss()
-test_distogram_loss()
-print("All loss tests passed.")
+def test_plddt_loss_returns_finite_scalar():
+    batch_size, length, num_bins = 2, 8, 50
+    coords_true = torch.randn(batch_size, length, 3)
+    coords_pred = coords_true + 0.1 * torch.randn_like(coords_true)
+    logits = torch.randn(batch_size, length, num_bins)
+    mask = torch.ones(batch_size, length)
+
+    loss = PlddtLoss(num_bins=num_bins, inclusion_radius=15.0)(
+        logits,
+        coords_pred,
+        coords_true,
+        mask=mask,
+    )
+
+    assert torch.isfinite(loss)
+    assert loss.ndim == 0
+
+
+def test_torsion_loss_is_zero_for_identical_normalized_vectors():
+    torsion_true = torch.randn(2, 6, 3, 2)
+    torsion_true = torsion_true / torch.linalg.norm(torsion_true, dim=-1, keepdim=True).clamp_min(1e-8)
+    torsion_mask = torch.ones(2, 6, 3)
+
+    loss = TorsionLoss()(torsion_true, torsion_true, torsion_mask)
+    assert torch.isfinite(loss)
+    assert loss.item() < 1e-7

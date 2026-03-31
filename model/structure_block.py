@@ -1,3 +1,10 @@
+"""AlphaFold-style structure module built from repeated IPA updates.
+
+This module refines the single representation into residue frames through
+Invariant Point Attention, transition layers, and backbone updates. It is the
+bridge between latent features and explicit 3D geometry.
+"""
+
 import torch
 import torch.nn as nn
 import math

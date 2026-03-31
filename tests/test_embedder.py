@@ -1,29 +1,27 @@
+from __future__ import annotations
 
 import torch
-import torch.nn as nn
 
-from model.input_embedder import *
+from model.input_embedder import InputEmbedder
 
-def test_input_embedder_shapes():
 
-    B = 2
-    N_msa = 128
-    L = 275
+def test_input_embedder_shapes_and_masks():
+    batch_size = 2
+    msa_depth = 8
+    length = 24
     n_tokens = 23
     pad_idx = 0
 
-    seq_tokens = torch.randint(1, n_tokens, (B, L))
-    msa_tokens = torch.randint(1, n_tokens, (B, N_msa, L))
+    seq_tokens = torch.randint(1, n_tokens, (batch_size, length))
+    msa_tokens = torch.randint(1, n_tokens, (batch_size, msa_depth, length))
 
-    seq_mask = torch.ones(B, L, dtype=torch.float32)
-    msa_mask = torch.ones(B, N_msa, L, dtype=torch.float32)
+    seq_mask = torch.ones(batch_size, length, dtype=torch.float32)
+    msa_mask = torch.ones(batch_size, msa_depth, length, dtype=torch.float32)
 
-    # meter algunos pads para probar mask
-    seq_tokens[0, -10:] = pad_idx
-    seq_mask[0, -10:] = 0.0
-
-    msa_tokens[0, :, -10:] = pad_idx
-    msa_mask[0, :, -10:] = 0.0
+    seq_tokens[0, -5:] = pad_idx
+    seq_mask[0, -5:] = 0.0
+    msa_tokens[0, :, -5:] = pad_idx
+    msa_mask[0, :, -5:] = 0.0
 
     model = InputEmbedder(
         n_tokens=n_tokens,
@@ -31,47 +29,53 @@ def test_input_embedder_shapes():
         c_z=128,
         c_s=256,
         max_relpos=32,
-        pad_idx=pad_idx)
+        pad_idx=pad_idx,
+    )
 
-    m, z = model(
+    msa_repr, pair_repr = model(
         seq_tokens=seq_tokens,
         msa_tokens=msa_tokens,
         seq_mask=seq_mask,
-        msa_mask=msa_mask,)
+        msa_mask=msa_mask,
+    )
 
-    # --------------------------
-    # shape checks
-    # --------------------------
-    assert m.shape == (B, N_msa, L, 256), f"m shape incorrect: {m.shape}"
-    assert z.shape == (B, L, L, 128), f"z shape incorrect: {z.shape}"
-
-    # --------------------------
-    # finiteness
-    # --------------------------
-    assert torch.isfinite(m).all(), "m has non-finite values"
-    assert torch.isfinite(z).all(), "z has non-finite values"
-
-    # --------------------------
-    # masked positions ~ zero
-    # --------------------------
-    assert torch.allclose(
-        m[0, :, -10:, :],
-        torch.zeros_like(m[0, :, -10:, :]),
-        atol=1e-5
-    ), "MSA masked positions are not zeroed"
+    assert msa_repr.shape == (batch_size, msa_depth, length, 256)
+    assert pair_repr.shape == (batch_size, length, length, 128)
+    assert torch.isfinite(msa_repr).all()
+    assert torch.isfinite(pair_repr).all()
 
     assert torch.allclose(
-        z[0, -10:, :, :],
-        torch.zeros_like(z[0, -10:, :, :]),
-        atol=1e-5
-    ), "Pair masked rows are not zeroed"
-
+        msa_repr[0, :, -5:, :],
+        torch.zeros_like(msa_repr[0, :, -5:, :]),
+        atol=1e-5,
+    )
     assert torch.allclose(
-        z[0, :, -10:, :],
-        torch.zeros_like(z[0, :, -10:, :]),
-        atol=1e-5
-    ), "Pair masked cols are not zeroed"
+        pair_repr[0, -5:, :, :],
+        torch.zeros_like(pair_repr[0, -5:, :, :]),
+        atol=1e-5,
+    )
+    assert torch.allclose(
+        pair_repr[0, :, -5:, :],
+        torch.zeros_like(pair_repr[0, :, -5:, :]),
+        atol=1e-5,
+    )
 
-    print("OK: InputEmbedder passed shape and mask tests.")
-    print("m shape:", m.shape)
-    print("z shape:", z.shape)
+
+def test_input_embedder_is_deterministic_for_fixed_inputs():
+    model = InputEmbedder(
+        n_tokens=27,
+        c_m=256,
+        c_z=128,
+        c_s=256,
+        max_relpos=32,
+        pad_idx=0,
+    )
+
+    seq_tokens = torch.randint(1, 27, (1, 10))
+    msa_tokens = torch.randint(1, 27, (1, 2, 10))
+
+    msa_repr_1, pair_repr_1 = model(seq_tokens=seq_tokens, msa_tokens=msa_tokens)
+    msa_repr_2, pair_repr_2 = model(seq_tokens=seq_tokens, msa_tokens=msa_tokens)
+
+    assert torch.allclose(msa_repr_1, msa_repr_2, atol=1e-6)
+    assert torch.allclose(pair_repr_1, pair_repr_2, atol=1e-6)

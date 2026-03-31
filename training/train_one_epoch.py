@@ -1,3 +1,10 @@
+"""Single-epoch training utilities for the custom training loop.
+
+This module contains batch transfer helpers, gradient statistics, optional AMP
+execution, metric logging, and the full per-epoch optimization routine used by
+the higher-level training entry point.
+"""
+
 import time
 import torch
 import torch.nn as nn

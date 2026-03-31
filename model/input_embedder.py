@@ -1,3 +1,10 @@
+"""Input embedding layers for sequences and MSAs.
+
+This module converts discrete residue tokens and MSA tokens into the initial
+MSA and pair representations consumed by the Evoformer. It also handles masking
+and relative positional features for the pair stream.
+"""
+
 import torch
 import torch.nn as nn
 

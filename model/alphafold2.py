@@ -1,3 +1,11 @@
+"""Top-level AlphaFold2-like model assembly.
+
+This module wires the input embedder, Evoformer stack, structure module, and
+output heads into a single PyTorch model that returns representations,
+geometric predictions, backbone coordinates, torsions, confidence, and
+distogram outputs.
+"""
+
 import torch 
 import torch.nn as nn 
 from model.evoformer_block import * 

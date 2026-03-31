@@ -1,3 +1,10 @@
+"""Automatic mixed precision helpers for training.
+
+This module centralizes dtype resolution, autocast context creation, and
+GradScaler handling so the rest of the training stack can stay device-agnostic
+and robust across CPU, CUDA, bf16, fp16, and fp32 execution modes.
+"""
+
 import inspect
 from contextlib import contextmanager, nullcontext
 from typing import Optional

@@ -146,6 +146,8 @@ def run_loader_smoke(args: argparse.Namespace) -> None:
 
     dataset_summary = summarize_dataset(dataset)
     print(f"[scripts.prepare_data] dataset summary: {dataset_summary}")
+    if len(dataset) == 0:
+        raise ValueError("Loader smoke found zero valid examples. Check the manifest paths and drop reasons above.")
 
     batch = next(iter(loader))
     print(f"[scripts.prepare_data] batch summary: {summarize_batch(batch)}")

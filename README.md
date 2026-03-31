@@ -144,6 +144,44 @@ dataset = FoldbenchProteinDataset(manifest_csv="data/Proteinas_secuencias.csv")
 
 ---
 
+## Bundled Showcase Data
+
+The repository now includes a tiny real-data showcase under `data/af_subset_showcase` plus:
+
+- `data/showcase_manifest.csv`
+- `data/showcase_manifest.yaml`
+- `data/showcase_targets.txt`
+
+Current showcase targets:
+
+- `7qrj_A`
+- `7qrr_A`
+
+This showcase subset is intentionally small, around `2.2M` on disk, so it can be versioned in the repository as a reproducible sanity-check for the data pipeline without dragging in a large benchmark snapshot.
+
+You can validate the real local data path with:
+
+```bash
+python3 scripts/prepare_data.py loader-smoke \
+  --config config/experiments/af2_poc.yaml \
+  --manifest-csv data/showcase_manifest.csv \
+  --batch-size 2 \
+  --max-samples 2
+```
+
+And inspect one of the bundled structures with:
+
+```bash
+python3 scripts/inspect_data.py protein-3d \
+  --cif-path data/af_subset_showcase/reference_structures/7qrj-assembly1_68.cif \
+  --chain-id A \
+  --output artifacts/showcase_7qrj_backbone.png
+```
+
+
+
+---
+
 ## CLI workflows
 
 ### Prepare data and loader

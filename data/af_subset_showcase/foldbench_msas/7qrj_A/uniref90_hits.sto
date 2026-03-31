@@ -1,0 +1,40 @@
+# STOCKHOLM 1.0
+
+#=GS UniRef90_A0A2P1EHJ0/1-184      DE [subseq from] Minor virion protein n=2 Tax=Zamilon virus TaxID=1411887 RepID=A0A2P1EHJ0_9VIRU
+#=GS UniRef90_B4YNE8/1-184          DE [subseq from] Structural protein V8 n=4 Tax=Lavidaviridae TaxID=1914302 RepID=V8_SPTNK
+#=GS UniRef90_B4YNE7/1-58           DE [subseq from] Uncharacterized protein V7 n=4 Tax=Lavidaviridae TaxID=1914302 RepID=V7_SPTNK
+#=GS UniRef90_V6BPG8/1-59           DE [subseq from] Collagen-like protein n=2 Tax=Zamilon virus TaxID=1411887 RepID=V6BPG8_9VIRU
+#=GS UniRef90_B4YNE6/1-57           DE [subseq from] Collagen-like protein V6 n=5 Tax=Viruses TaxID=10239 RepID=V6_SPTNK
+#=GS UniRef90_V6BPN7/1-57           DE [subseq from] Collagen-like protein n=1 Tax=Zamilon virus TaxID=1411887 RepID=V6BPN7_9VIRU
+#=GS UniRef90_A0A2P1EHI7/1-57       DE [subseq from] Collagen-like protein n=1 Tax=Zamilon virus TaxID=1411887 RepID=A0A2P1EHI7_9VIRU
+#=GS UniRef90_UPI001D180EE8/134-193 DE [subseq from] Ig-like domain-containing protein n=1 Tax=Acinetobacter seifertii TaxID=1530123 RepID=UPI001D180EE8
+#=GS UniRef90_UPI001D180EE8/232-292 DE [subseq from] Ig-like domain-containing protein n=1 Tax=Acinetobacter seifertii TaxID=1530123 RepID=UPI001D180EE8
+#=GS UniRef90_UPI001D180EE8/330-389 DE [subseq from] Ig-like domain-containing protein n=1 Tax=Acinetobacter seifertii TaxID=1530123 RepID=UPI001D180EE8
+#=GS UniRef90_UPI001D180EE8/428-485 DE [subseq from] Ig-like domain-containing protein n=1 Tax=Acinetobacter seifertii TaxID=1530123 RepID=UPI001D180EE8
+#=GS UniRef90_UPI001D180EE8/527-586 DE [subseq from] Ig-like domain-containing protein n=1 Tax=Acinetobacter seifertii TaxID=1530123 RepID=UPI001D180EE8
+#=GS UniRef90_UPI000CC08FFF/24-84   DE [subseq from] Ig-like domain-containing protein n=2 Tax=Acinetobacter TaxID=469 RepID=UPI000CC08FFF
+#=GS UniRef90_UPI000CC08FFF/122-177 DE [subseq from] Ig-like domain-containing protein n=2 Tax=Acinetobacter TaxID=469 RepID=UPI000CC08FFF
+#=GS UniRef90_UPI000CC08FFF/220-280 DE [subseq from] Ig-like domain-containing protein n=2 Tax=Acinetobacter TaxID=469 RepID=UPI000CC08FFF
+#=GS UniRef90_UPI000CC08FFF/320-378 DE [subseq from] Ig-like domain-containing protein n=2 Tax=Acinetobacter TaxID=469 RepID=UPI000CC08FFF
+#=GS UniRef90_UPI000CC08FFF/417-475 DE [subseq from] Ig-like domain-containing protein n=2 Tax=Acinetobacter TaxID=469 RepID=UPI000CC08FFF
+
+7qrj_1|A|A|PROTEIN                     MSISSLLEKNIYNVHNKSNTLTNVPANPTGNTNTVWSNSNFTPPHLMYGASDITQAIGNISLTTGSFSLSLSGPWASPLVQNVAYTKINNLVNLTFPPFQANATSSAVINSAIGALPADLRPTTNIQVDFEIFVIDDGNRPVNPGLITLLSNGQIVVYKDNNLGQFTTGIGGSGFNPFSITYMV
+UniRef90_A0A2P1EHJ0/1-184              MSISSLLEKNIYNVHNKSNTLTNVPANPTGNTNTVWSNSNFTPPHLMYGASDITQAIGNISLTTGSFSLSLSGPWASPLVQNVAYTKINNLVNLTFPPFQANATSSAVINSAIGALPADLRPTTNIQVDFEIFVIDDGNRPVNPGLITLLSNGQIVVYKDNNLGQFTTGIGGSGFNPFSITYMV
+UniRef90_B4YNE8/1-184                  MSVSTLFQQNNNNIYNKSNTLTNTPSNPTGNTNTLWSNSGFNPPHLMYGASDVTAAINNIAFETGTFNLQLSGPWASPISHAVSYTKINNLVNLTIPTYQAQATTLASISSIVGALPTNLRPVNNPEIDFEIFVLDNGTRTTNPGLITLLSNGQILIYKDNNLGQFTVGSGGSGFNPFSITYMI
+UniRef90_B4YNE7/1-58                   MSVSSLLQPNTYNINSKSQSLSNTPSNPTSQTNTLWSNNAYNPPHLMFGSSDLNNGTG------------------------------------------------------------------------------------------------------------------------------
+UniRef90_V6BPG8/1-59                   MSVSILLQPNTYNINSKSHSLTNLPTNPTSASNTLWSNNAFNPPHLMFGSADLNSGTGS-----------------------------------------------------------------------------------------------------------------------------
+UniRef90_B4YNE6/1-57                   MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+UniRef90_V6BPN7/1-57                   MSLSTLFSPNTYNINSKSHTLNNLPSNPTNLSNTIWSNNAHNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+UniRef90_A0A2P1EHI7/1-57               MSLSTLFSPNTYNINSKSHTLNNLPSNPTNLNNTIWSNNAHNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+UniRef90_UPI001D180EE8/134-193         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISATDLNLAAGESTTVTFTFSEAVTGFDAT-----------------------------------------------------------------------------------------------------------
+UniRef90_UPI001D180EE8/232-292         -----------------NGTYTDLAGNPGSGANLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEAVTGFDATD----------------------------------------------------------------------------------------------------------
+UniRef90_UPI001D180EE8/330-389         -----------------NGTYTDLAGNPGSGANLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEAVTGFDAT-----------------------------------------------------------------------------------------------------------
+UniRef90_UPI001D180EE8/428-485         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLAAGETTTVTFTFSEAVTGFD-------------------------------------------------------------------------------------------------------------
+UniRef90_UPI001D180EE8/527-586         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLSVGESTTVTFTFSEPVTGFDAS-----------------------------------------------------------------------------------------------------------
+UniRef90_UPI000CC08FFF/24-84           -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEAVTGFDATD----------------------------------------------------------------------------------------------------------
+UniRef90_UPI000CC08FFF/122-177         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEVVTG---------------------------------------------------------------------------------------------------------------
+UniRef90_UPI000CC08FFF/220-280         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEAVTGFDASD----------------------------------------------------------------------------------------------------------
+UniRef90_UPI000CC08FFF/320-378         ------------------ATYTDLAGNPGSGASLAGLTADITPPTLAISATDLNLAAGESTTVTFTFSEAVTGFDAT-----------------------------------------------------------------------------------------------------------
+UniRef90_UPI000CC08FFF/417-475         -----------------NGTYTDLAGNPGSGASLAGLTADITPPTLAISASDLNLAAGESTTVTFTFSEAVTGFDA------------------------------------------------------------------------------------------------------------
+#=GC RF                                xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+//

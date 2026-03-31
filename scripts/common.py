@@ -111,10 +111,23 @@ def build_dataset_from_config(
     verbose: bool = True,
 ) -> FoldbenchProteinDataset:
     data_cfg = nested_get(config, "data", default={}) or {}
+    manifest_override = manifest_csv is not None
     return FoldbenchProteinDataset(
-        json_path=str(repo_path(data_cfg.get("json_path"))) if data_cfg.get("json_path") else None,
-        msa_root=str(repo_path(data_cfg.get("msa_root"))) if data_cfg.get("msa_root") else None,
-        cif_root=str(repo_path(data_cfg.get("cif_root"))) if data_cfg.get("cif_root") else None,
+        json_path=(
+            None
+            if manifest_override or not data_cfg.get("json_path")
+            else str(repo_path(data_cfg.get("json_path")))
+        ),
+        msa_root=(
+            None
+            if manifest_override or not data_cfg.get("msa_root")
+            else str(repo_path(data_cfg.get("msa_root")))
+        ),
+        cif_root=(
+            None
+            if manifest_override or not data_cfg.get("cif_root")
+            else str(repo_path(data_cfg.get("cif_root")))
+        ),
         manifest_csv=str(repo_path(manifest_csv or data_cfg.get("manifest_csv")))
         if (manifest_csv or data_cfg.get("manifest_csv"))
         else None,

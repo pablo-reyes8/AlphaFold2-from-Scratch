@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import torch
 
+import scripts.common as scripts_common
 from scripts.common import (
     build_ideal_backbone_local,
     build_loss_from_config,
@@ -62,6 +63,29 @@ def test_common_builders_support_forward_and_loss_smoke():
     assert outputs["distogram_logits"].shape[:3] == (1, 8, 8)
     assert torch.isfinite(outputs["plddt"]).all()
     assert torch.isfinite(losses["loss"])
+
+
+def test_build_dataset_from_config_does_not_rewrite_paths_when_manifest_is_overridden(monkeypatch):
+    captured = {}
+
+    class RecordingDataset:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    config = _tiny_config()
+    monkeypatch.setattr(scripts_common, "FoldbenchProteinDataset", RecordingDataset)
+
+    scripts_common.build_dataset_from_config(
+        config,
+        manifest_csv="data/smoke_one_manifest.csv",
+        max_samples=1,
+        verbose=False,
+    )
+
+    assert captured["manifest_csv"].endswith("data/smoke_one_manifest.csv")
+    assert captured["msa_root"] is None
+    assert captured["cif_root"] is None
+    assert captured["json_path"] is None
 
 
 def test_validate_forward_smoke_returns_finite_summary():

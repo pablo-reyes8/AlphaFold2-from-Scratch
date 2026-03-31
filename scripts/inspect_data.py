@@ -131,6 +131,8 @@ def run_loader_preview(args: argparse.Namespace) -> None:
         shuffle=False,
     )
     print(f"[scripts.inspect_data] dataset summary: {summarize_dataset(dataset)}")
+    if len(dataset) == 0:
+        raise ValueError("Loader preview found zero valid examples. Check the manifest paths and drop reasons above.")
     print(f"[scripts.inspect_data] batch summary: {summarize_batch(next(iter(loader)))}")
 
 

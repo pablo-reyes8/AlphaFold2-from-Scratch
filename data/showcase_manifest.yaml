@@ -1,0 +1,29 @@
+metadata:
+  name: foldbench_subset_50
+  generated_by: python -m data.preproces_data
+  keep_only_complete_records: true
+paths:
+  manifest_csv: data/showcase_manifest.csv
+  targets_txt: data/showcase_targets.txt
+summary:
+  records: 2
+  complete_records: 2
+  msa_available: 2
+  cif_available: 2
+  unique_chain_ids:
+  - A
+  targets_preview:
+  - 7QRJ
+  - 7QRR
+  sequence_length:
+    min: 153
+    max: 184
+    mean: 168.5
+    median: 168.5
+  longest_examples:
+  - query_name: 7QRJ
+    chain_id: A
+    seq_len: 184
+  - query_name: 7QRR
+    chain_id: A
+    seq_len: 153

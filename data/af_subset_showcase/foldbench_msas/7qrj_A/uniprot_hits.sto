@@ -1,0 +1,44 @@
+# STOCKHOLM 1.0
+
+#=GS tr|A0A2P1EHJ0|A0A2P1EHJ0_9VIRU/1-184 DE [subseq from] Minor virion protein OS=Zamilon virus OX=1411887 GN=za3_19 PE=1 SV=1
+#=GS tr|V6BPN9|V6BPN9_9VIRU/1-184         DE [subseq from] Minor virion protein OS=Zamilon virus OX=1411887 PE=4 SV=1
+#=GS tr|A0A652ZQW5|A0A652ZQW5_9VIRU/1-184 DE [subseq from] Minor virion protein OS=Guarani virophage OX=2268406 GN=GUARANI_10 PE=4 SV=1
+#=GS sp|B4YNE8|V8_SPTNK/1-184             DE [subseq from] Structural protein V8 OS=Sputnik virophage OX=543939 PE=1 SV=1
+#=GS tr|I0CEP9|I0CEP9_9VIRU/1-184         DE [subseq from] Minor virion protein OS=Sputnik virophage 2 OX=1133031 GN=Sputnik2_R8 PE=4 SV=1
+#=GS tr|I0CER9|I0CER9_9VIRU/1-184         DE [subseq from] Minor virion protein OS=Sputnik virophage 3 OX=1133032 GN=Sputnik3_R8 PE=4 SV=1
+#=GS sp|B4YNE7|V7_SPTNK/1-58              DE [subseq from] Uncharacterized protein V7 OS=Sputnik virophage OX=543939 GN=ORF7 PE=3 SV=1
+#=GS tr|A0A652ZQN0|A0A652ZQN0_9VIRU/1-58  DE [subseq from] Uncharacterized protein OS=Guarani virophage OX=2268406 GN=GUARANI_9 PE=4 SV=1
+#=GS tr|I0CEP8|I0CEP8_9VIRU/1-58          DE [subseq from] Uncharacterized protein OS=Sputnik virophage 2 OX=1133031 GN=Sputnik2_R7 PE=4 SV=1
+#=GS tr|I0CER8|I0CER8_9VIRU/1-58          DE [subseq from] Uncharacterized protein OS=Sputnik virophage 3 OX=1133032 GN=Sputnik3_R7 PE=4 SV=1
+#=GS tr|A0A2P1EHK1|A0A2P1EHK1_9VIRU/1-59  DE [subseq from] Collagen-like protein OS=Zamilon virus OX=1411887 GN=za3_20 PE=4 SV=1
+#=GS tr|V6BPG8|V6BPG8_9VIRU/1-59          DE [subseq from] Collagen-like protein OS=Zamilon virus OX=1411887 PE=4 SV=1
+#=GS tr|A0A6M4EWX2|A0A6M4EWX2_9VIRU/1-57  DE [subseq from] Collagen-like protein OS=Guarani virus OX=1795436 PE=4 SV=1
+#=GS sp|B4YNE6|V6_SPTNK/1-57              DE [subseq from] Collagen-like protein V6 OS=Sputnik virophage OX=543939 GN=ORF6 PE=3 SV=1
+#=GS tr|A0A652ZQK7|A0A652ZQK7_9VIRU/1-57  DE [subseq from] Collagen-like protein OS=Guarani virophage OX=2268406 GN=GUARANI_8 PE=4 SV=1
+#=GS tr|I0CEP7|I0CEP7_9VIRU/1-57          DE [subseq from] Collagen-like protein OS=Sputnik virophage 2 OX=1133031 GN=Sputnik2_R6 PE=4 SV=1
+#=GS tr|I0CER7|I0CER7_9VIRU/1-57          DE [subseq from] Collagen-like protein OS=Sputnik virophage 3 OX=1133032 GN=Sputnik3_R6 PE=4 SV=1
+#=GS tr|V6BPN7|V6BPN7_9VIRU/1-57          DE [subseq from] Collagen-like protein OS=Zamilon virus OX=1411887 PE=4 SV=1
+#=GS tr|A0A2P1EHI7|A0A2P1EHI7_9VIRU/1-57  DE [subseq from] Collagen-like protein OS=Zamilon virus OX=1411887 GN=za3_1 PE=4 SV=2
+
+7qrj_1|A|A|PROTEIN                           MSISSLLEKNIYNVHNKSNTLTNVPANPTGNTNTVWSNSNFTPPHLMYGASDITQAIGNISLTTGSFSLSLSGPWASPLVQNVAYTKINNLVNLTFPPFQANATSSAVINSAIGALPADLRPTTNIQVDFEIFVIDDGNRPVNPGLITLLSNGQIVVYKDNNLGQFTTGIGGSGFNPFSITYMV
+tr|A0A2P1EHJ0|A0A2P1EHJ0_9VIRU/1-184         MSISSLLEKNIYNVHNKSNTLTNVPANPTGNTNTVWSNSNFTPPHLMYGASDITQAIGNISLTTGSFSLSLSGPWASPLVQNVAYTKINNLVNLTFPPFQANATSSAVINSAIGALPADLRPTTNIQVDFEIFVIDDGNRPVNPGLITLLSNGQIVVYKDNNLGQFTTGIGGSGFNPFSITYMV
+tr|V6BPN9|V6BPN9_9VIRU/1-184                 MSISSLLQPNLYNINNKSNTLTNVPANPTGNTNTVWSNSNFTPPHLMYGASDITQAVSNISLTTGSFSLSLSGPWASPLVQNVAYTKINNLVNLTFPPFQANATSSAVINSAIGALPADLRPTTNIQVDFEIFVIDDGNRPVNPGLITLLSNGQIVVYKDNNLGQFTTGIGGSGFNPFSITYMV
+tr|A0A652ZQW5|A0A652ZQW5_9VIRU/1-184         MSVSTLFQQNNNNIYNKSNTLTNTPSNPTGNTNTLWSNSGFNPPHLMYGASDVTAAINNIAFETGTFNLQLSGPWASPLTYAVSYTKINNLVNLTIPTYQAQATTLASISSIVGALPTNLRPVNNPEIDFEIFVLDNGTRTTNPGLITLLSNGQILIYKDNNLGQFTVGSGGSGFNPFSITYMI
+sp|B4YNE8|V8_SPTNK/1-184                     MSVSTLFQQNNNNIYNKSNTLTNTPSNPTGNTNTLWSNSGFNPPHLMYGASDVTAAINNIAFETGTFNLQLSGPWASPISHAVSYTKINNLVNLTIPTYQAQATTLASISSIVGALPTNLRPVNNPEIDFEIFVLDNGTRTTNPGLITLLSNGQILIYKDNNLGQFTVGSGGSGFNPFSITYMI
+tr|I0CEP9|I0CEP9_9VIRU/1-184                 MSVSTLFQQNNNNIYNKSNTLTNTPSNPTGNTNTLWSNSGFNPPHLMYGASDVTAAINNIAFETGTFNLQLSGPWASPISHAVSYTKINNLVNLTIPTYQAQATTLASISSIVGALPTNLRPVNNPEIDFEIFVLDNGTRTTNPGLITLLSNGQILIYKDNNLGQFTVGSGGSGFNPFSITYMI
+tr|I0CER9|I0CER9_9VIRU/1-184                 MSVSTLFQQNNNNIYNKSNTLTNTPSNPTGNTNTLWSNSGFNPPHLMYGASDVTAAINNIAFETGTFNLQLSGPWASPISHAVSYTKINNLVNLTIPTYQAQATTLASISSIVGALPTNLRPVNNPEIDFEIFVLDNGTRTTNPGLITLLSNGQILIYKDNNLGQFTVGSGGSGFNPFSITYMI
+sp|B4YNE7|V7_SPTNK/1-58                      MSVSSLLQPNTYNINSKSQSLSNTPSNPTSQTNTLWSNNAYNPPHLMFGSSDLNNGTG------------------------------------------------------------------------------------------------------------------------------
+tr|A0A652ZQN0|A0A652ZQN0_9VIRU/1-58          MSVSSLLQPNTYNINSKSQSLSNTPSNPTSQTNTLWSNNAYNPPHLMFGSSDLNNGTG------------------------------------------------------------------------------------------------------------------------------
+tr|I0CEP8|I0CEP8_9VIRU/1-58                  MSVSSLLQPNTYNINSKSQSLSNTPSNPTSQTNTLWSNNAYNPPHLMFGSSDLNNGTG------------------------------------------------------------------------------------------------------------------------------
+tr|I0CER8|I0CER8_9VIRU/1-58                  MSVSSLLQPNTYNINSKSQSLSNTPSNPTSQTNTLWSNNAYNPPHLMFGSSDLNNGTG------------------------------------------------------------------------------------------------------------------------------
+tr|A0A2P1EHK1|A0A2P1EHK1_9VIRU/1-59          MSVSILLQPNTYNINSKSHSLTNLPTNPTSASNTLWSNNAFNPPHLMFGSADLNSGTGS-----------------------------------------------------------------------------------------------------------------------------
+tr|V6BPG8|V6BPG8_9VIRU/1-59                  MSVSILLQPNTYNINSKSHSLTNLPTNPTSASNTLWSNNAFNPPHLMFGSADLNSGTGS-----------------------------------------------------------------------------------------------------------------------------
+tr|A0A6M4EWX2|A0A6M4EWX2_9VIRU/1-57          MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+sp|B4YNE6|V6_SPTNK/1-57                      MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+tr|A0A652ZQK7|A0A652ZQK7_9VIRU/1-57          MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+tr|I0CEP7|I0CEP7_9VIRU/1-57                  MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+tr|I0CER7|I0CER7_9VIRU/1-57                  MSLSTLFSPNTYNINSKSQTLNNLPSNPTSQTNTLWSNNAYNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+tr|V6BPN7|V6BPN7_9VIRU/1-57                  MSLSTLFSPNTYNINSKSHTLNNLPSNPTNLSNTIWSNNAHNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+tr|A0A2P1EHI7|A0A2P1EHI7_9VIRU/1-57          MSLSTLFSPNTYNINSKSHTLNNLPSNPTNLNNTIWSNNAHNPPHLMFGSTDLSNGG-------------------------------------------------------------------------------------------------------------------------------
+#=GC RF                                      xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+//

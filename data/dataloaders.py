@@ -102,6 +102,20 @@ def pad_or_crop_msa(msa_seqs: list[str], target_len: int, max_msa_seqs: int) -> 
     return fixed
 
 
+def select_msa_sequences(
+    msa_seqs: list[str],
+    *,
+    target_sequence: str,
+    target_len: int,
+    max_msa_seqs: int,
+    single_sequence_mode: bool = False,
+) -> list[str]:
+    if single_sequence_mode:
+        return pad_or_crop_msa([target_sequence], target_len=target_len, max_msa_seqs=1)
+
+    return pad_or_crop_msa(msa_seqs, target_len=target_len, max_msa_seqs=max_msa_seqs)
+
+
 def tokenize_msa(msa_seqs: list[str]) -> torch.Tensor:
     return torch.stack([tokenize_sequence(sequence) for sequence in msa_seqs], dim=0)
 
@@ -319,6 +333,7 @@ class FoldbenchProteinDataset(Dataset):
         use_a3m_name: str = "cfdb_hits.a3m",
         max_samples: int | None = None,
         min_identity: float = 0.90,
+        single_sequence_mode: bool = False,
         verbose: bool = True,
     ):
         self.json_path = Path(json_path).expanduser() if json_path is not None else None
@@ -328,6 +343,7 @@ class FoldbenchProteinDataset(Dataset):
         self.max_msa_seqs = max_msa_seqs
         self.use_a3m_name = use_a3m_name
         self.min_identity = min_identity
+        self.single_sequence_mode = bool(single_sequence_mode)
 
         self.manifest_df = self._load_manifest()
         rows, dropped = self._build_index(self.manifest_df)
@@ -439,10 +455,12 @@ class FoldbenchProteinDataset(Dataset):
         seq_tokens = tokenize_sequence(target_sequence)
 
         msa_seqs = read_a3m(msa_file, max_msa_seqs=self.max_msa_seqs)
-        msa_seqs = pad_or_crop_msa(
+        msa_seqs = select_msa_sequences(
             msa_seqs,
+            target_sequence=target_sequence,
             target_len=len(target_sequence),
             max_msa_seqs=self.max_msa_seqs,
+            single_sequence_mode=self.single_sequence_mode,
         )
         msa_tokens = tokenize_msa(msa_seqs)
         msa_mask = (msa_tokens != AA_VOCAB["-"]).float()

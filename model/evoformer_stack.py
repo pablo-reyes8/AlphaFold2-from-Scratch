@@ -24,9 +24,17 @@ class EvoformerStack(nn.Module):
         c_hidden_msa_att=32,
         c_hidden_pair_att=32,
         transition_expansion=4,
-        dropout=0.15):
+        dropout=0.15,
+        pair_stack_enabled=True,
+        triangle_multiplication_enabled=True,
+        triangle_attention_enabled=True,
+        pair_transition_enabled=True):
 
         super().__init__()
+        self.pair_stack_enabled = bool(pair_stack_enabled)
+        self.triangle_multiplication_enabled = bool(triangle_multiplication_enabled)
+        self.triangle_attention_enabled = bool(triangle_attention_enabled)
+        self.pair_transition_enabled = bool(pair_transition_enabled)
         self.blocks = nn.ModuleList([
             EvoformerBlock(
                 c_m=c_m,
@@ -38,7 +46,11 @@ class EvoformerStack(nn.Module):
                 c_hidden_msa_att=c_hidden_msa_att,
                 c_hidden_pair_att=c_hidden_pair_att,
                 transition_expansion=transition_expansion,
-                dropout=dropout,)  for _ in range(num_blocks)])
+                dropout=dropout,
+                pair_stack_enabled=self.pair_stack_enabled,
+                triangle_multiplication_enabled=self.triangle_multiplication_enabled,
+                triangle_attention_enabled=self.triangle_attention_enabled,
+                pair_transition_enabled=self.pair_transition_enabled,)  for _ in range(num_blocks)])
 
     def forward(self, m, z, msa_mask=None, pair_mask=None):
         for block in self.blocks:

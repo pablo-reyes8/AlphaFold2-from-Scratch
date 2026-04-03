@@ -26,6 +26,34 @@ class AlphaFoldLoss(nn.Module):
             0.01 * torsion_loss
         )
     """
+    @staticmethod
+    def _normalize_ablation_id(ablation):
+        if ablation is None:
+            return None
+
+        if isinstance(ablation, str):
+            digits = "".join(character for character in ablation if character.isdigit())
+            if digits == "":
+                raise ValueError(f"Unsupported loss ablation identifier: {ablation}")
+            return int(digits)
+
+        return int(ablation)
+
+    @classmethod
+    def resolve_ablation_defaults(cls, ablation):
+        ablation_id = cls._normalize_ablation_id(ablation)
+        mapping = {
+            None: {},
+            1: {"w_plddt": 0.0},
+            2: {"w_plddt": 0.0},
+            3: {"w_dist": 0.0, "w_plddt": 0.0, "w_torsion": 0.0},
+            4: {},
+            5: {},
+        }
+        if ablation_id not in mapping:
+            valid = ", ".join(str(key) for key in sorted(key for key in mapping if key is not None))
+            raise ValueError(f"Unsupported AlphaFoldLoss ablation '{ablation}'. Valid ids: {valid}")
+        return mapping[ablation_id]
 
     def __init__(
         self,
@@ -36,12 +64,19 @@ class AlphaFoldLoss(nn.Module):
         dist_max_bin=22.0,
         plddt_num_bins=50,
         plddt_inclusion_radius=15.0,
+        ablation=None,
         w_fape=0.5,
         w_dist=0.3,
         w_plddt=0.01,
         w_torsion=0.01,):
       
         super().__init__()
+        ablation_defaults = self.resolve_ablation_defaults(ablation)
+        self.ablation = self._normalize_ablation_id(ablation)
+        w_fape = ablation_defaults.get("w_fape", w_fape)
+        w_dist = ablation_defaults.get("w_dist", w_dist)
+        w_plddt = ablation_defaults.get("w_plddt", w_plddt)
+        w_torsion = ablation_defaults.get("w_torsion", w_torsion)
 
 
         self.fape_loss_fn = FAPELoss(
@@ -63,6 +98,10 @@ class AlphaFoldLoss(nn.Module):
         self.w_dist = w_dist
         self.w_plddt = w_plddt
         self.w_torsion = w_torsion
+
+    @staticmethod
+    def _zero_scalar(*, device, dtype):
+        return torch.zeros((), device=device, dtype=dtype)
 
     def forward(self, out, batch):
         """
@@ -114,34 +153,50 @@ class AlphaFoldLoss(nn.Module):
         # -----------------------------
         # Component losses
         # -----------------------------
-        fape_loss = self.fape_loss_fn(
-            R_pred=R_pred,
-            t_pred=t_pred,
-            x_pred=x_pred,
-            R_true=R_true,
-            t_true=t_true,
-            x_true=x_true,
-            mask=backbone_mask,)
+        zero = self._zero_scalar(device=device, dtype=dtype)
 
-        dist_loss = self.dist_loss_fn(
-            distogram_logits=out["distogram_logits"],
-            x_true=coords_ca,
-            mask=res_mask)
+        if self.w_fape > 0.0:
+            fape_loss = self.fape_loss_fn(
+                R_pred=R_pred,
+                t_pred=t_pred,
+                x_pred=x_pred,
+                R_true=R_true,
+                t_true=t_true,
+                x_true=x_true,
+                mask=backbone_mask,)
+        else:
+            fape_loss = zero
 
-        plddt_loss = self.plddt_loss_fn(
-            plddt_logits=out["plddt_logits"],
-            x_pred=x_pred,
-            x_true=coords_ca,
-            mask=res_mask)
+        if (self.w_dist > 0.0) and (out.get("distogram_logits", None) is not None):
+            dist_loss = self.dist_loss_fn(
+                distogram_logits=out["distogram_logits"],
+                x_true=coords_ca,
+                mask=res_mask)
+        else:
+            dist_loss = zero
 
-        if ("torsion_true" in batch) and ("torsion_mask" in batch):
+        if (self.w_plddt > 0.0) and (out.get("plddt_logits", None) is not None):
+            plddt_loss = self.plddt_loss_fn(
+                plddt_logits=out["plddt_logits"],
+                x_pred=x_pred,
+                x_true=coords_ca,
+                mask=res_mask)
+        else:
+            plddt_loss = zero
+
+        if (
+            (self.w_torsion > 0.0)
+            and (out.get("torsions", None) is not None)
+            and ("torsion_true" in batch)
+            and ("torsion_mask" in batch)
+        ):
             torsion_loss = self.torsion_loss_fn(
                 torsion_pred=out["torsions"],
                 torsion_true=batch["torsion_true"],
                 torsion_mask=batch["torsion_mask"])
             
         else:
-            torsion_loss = torch.zeros((), device=device, dtype=dtype)
+            torsion_loss = zero
 
 
         # Weighted total

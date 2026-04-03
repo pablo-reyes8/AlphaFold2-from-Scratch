@@ -30,6 +30,23 @@ It is also designed with accessibility in mind for people who do not have access
 
 More broadly, the goal is to make this architecture genuinely accessible to study: anyone should be able to inspect, modify, and run meaningful experiments with the model, adapting its scale to the hardware they actually have rather than being excluded by the need for large training infrastructure.
 
+## Index
+
+- [Architectural Focus](#architectural-focus)
+- [Data & Reproducibility](#data--reproducibility)
+- [Repository structure](#repository-structure)
+- [Quickstart](#quickstart)
+- [Training](#training)
+- [Abliations Suite](#abliations-suite)
+- [CLI workflows](#cli-workflows)
+- [Configs](#configs)
+- [Docker](#docker)
+- [Design Philosophy](#design-philosophy)
+- [Intended audience](#intended-audience)
+- [Roadmap](#roadmap)
+- [Citation](#citation)
+- [Acknowledgments](#acknowledgments)
+- [License](#license)
 
 
 ## Architectural Focus
@@ -76,14 +93,18 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 │   └── af_subset_showcase/
 ├── model/                     # AlphaFold2 architecture, heads, geometric blocks, and losses
 │   └── losses/
-├── training/                  # single-device training loop, AMP, EMA, checkpoints, and metrics
+├── training/                  # single-device training loop, ablation registry, AMP, EMA, checkpoints, and metrics
+│   ├── ablations/             # predefined architecture and loss ablation presets
 │   └── train_paralel/         # DDP and model-parallel helpers
 ├── scripts/                   # operational CLIs for data prep, validation, and training
 │   ├── prepare_data.py
 │   ├── inspect_data.py
 │   ├── validate_model.py
 │   ├── train_model.py
-│   └── train_parallel.py
+│   ├── train_parallel.py
+│   ├── train_ablation.py
+│   ├── train_ablation_parallel.py
+│   └── ablations/
 ├── tests/                     # data, model, loss, and CLI coverage
 ├── notebooks/                 # interactive experiments for Colab or local exploration
 ├── paper/                     # reference material from the AlphaFold paper and notes
@@ -106,10 +127,16 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 - [model/losses/](model/losses/) — component losses and helpers for geometry-aware supervision.
 - [training/train_one_epoch.py](training/train_one_epoch.py) — per-epoch optimization routine with AMP, recycling, logging, and metric collection.
 - [training/train_alphafold2.py](training/train_alphafold2.py) — full training orchestrator for checkpointing, resume, monitoring, and epoch scheduling.
+- [training/ablations/catalog.py](training/ablations/catalog.py) — registry of prebuilt architecture and loss ablations resolved on top of a base experiment config.
+- [training/ablations/runtime.py](training/ablations/runtime.py) — resolves baseline or named ablations into a safe config variant without changing the default training path.
 - [training/train_paralel/data_parallel.py](training/train_paralel/data_parallel.py) — DDP utilities, distributed samplers, and rank synchronization helpers.
 - [training/train_paralel/model_parallel.py](training/train_paralel/model_parallel.py) — two-stage model-parallel wrapper for splitting AlphaFold2 across GPUs.
 - [scripts/train_model.py](scripts/train_model.py) — standard config-driven single-device training launcher.
 - [scripts/train_parallel.py](scripts/train_parallel.py) — multi-GPU launcher for DDP, model parallelism, and hybrid setups.
+- [scripts/train_ablation.py](scripts/train_ablation.py) — single-device launcher for named architecture and loss ablations.
+- [scripts/train_ablation_parallel.py](scripts/train_ablation_parallel.py) — multi-GPU launcher for the same ablation presets.
+- [scripts/ablations/run_suite.py](scripts/ablations/run_suite.py) — runs multiple presets sequentially and exports a comparison table.
+- [scripts/ablations/README.md](scripts/ablations/README.md) — detailed documentation for the proposed ablation suite and each preset.
 
 ### Bundled test data
 
@@ -277,6 +304,67 @@ python3 scripts/train_parallel.py \
 ```
 
 The hybrid mode `--parallel-mode hybrid` is also available, but it is intended for multi-replica setups and typically needs at least 4 GPUs.
+
+
+### Abliations Suite
+
+The repository also includes an opt-in ablation suite documented in [scripts/ablations/README.md](scripts/ablations/README.md). The baseline path remains unchanged: if you instantiate `AlphaFold2(...)` and `AlphaFoldLoss(...)` without `ablation=...`, every ablation switch stays off and the normal training route is preserved.
+
+The current presets combine high-level architectural and loss interventions such as:
+
+- disabling the Evoformer pair stack while keeping `OuterProductMean`,
+- disabling triangle attention while preserving triangle multiplication,
+- running a pure `FAPE` loss setup,
+- untieing structure-block parameters,
+- bypassing the Evoformer trunk entirely,
+- collapsing the MSA to a single target-sequence row as an orthogonal data ablation.
+
+For the full rationale and per-preset hypotheses, see [scripts/ablations/README.md](scripts/ablations/README.md).
+
+List the available presets:
+
+```bash
+python3 scripts/train_ablation.py --list
+```
+
+Inspect a resolved ablation config without building the full training stack:
+
+```bash
+python3 scripts/train_ablation.py \
+  --config config/experiments/af2_poc.yaml \
+  --ablation AF2_1 \
+  --show
+```
+
+Train one ablation on a single device:
+
+```bash
+python3 scripts/train_ablation.py \
+  --config config/experiments/af2_poc.yaml \
+  --ablation AF2_3 \
+  --device cuda
+```
+
+Train the same ablation with multi-GPU parallelism:
+
+```bash
+torchrun --nproc_per_node=2 scripts/train_ablation_parallel.py \
+  --config config/experiments/af2_poc.yaml \
+  --manifest-csv data/showcase_manifest.csv \
+  --ablation AF2_3 \
+  --parallel-mode ddp
+```
+
+Run a whole sweep and export a comparison table:
+
+```bash
+python3 scripts/ablations/run_suite.py \
+  --config config/experiments/af2_poc.yaml \
+  --include-baseline \
+  --all \
+  --output-dir artifacts/ablation_suite
+```
+
 
 ---
 

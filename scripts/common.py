@@ -133,6 +133,7 @@ def build_dataset_from_config(
         else None,
         max_msa_seqs=int(data_cfg.get("max_msa_seqs", 128)),
         min_identity=float(data_cfg.get("min_identity", 0.85)),
+        single_sequence_mode=bool(data_cfg.get("single_sequence_mode", False)),
         max_samples=max_samples,
         verbose=verbose,
     )

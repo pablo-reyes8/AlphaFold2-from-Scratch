@@ -28,6 +28,55 @@ class AlphaFold2(nn.Module):
       - pLDDT
       - distogram logits
     """
+    @staticmethod
+    def _normalize_ablation_id(ablation):
+        if ablation is None:
+            return None
+
+        if isinstance(ablation, str):
+            digits = "".join(character for character in ablation if character.isdigit())
+            if digits == "":
+                raise ValueError(f"Unsupported ablation identifier: {ablation}")
+            return int(digits)
+
+        return int(ablation)
+
+    @classmethod
+    def resolve_ablation_defaults(cls, ablation):
+        ablation_id = cls._normalize_ablation_id(ablation)
+        mapping = {
+            None: {},
+            1: {
+                "evoformer_pair_stack_enabled": False,
+                "recycle_pair_enabled": False,
+                "recycle_position_enabled": False,
+                "plddt_head_enabled": False,
+            },
+            2: {
+                "evoformer_triangle_attention_enabled": False,
+                "recycle_pair_enabled": False,
+                "recycle_position_enabled": False,
+                "plddt_head_enabled": False,
+            },
+            3: {
+                "distogram_head_enabled": False,
+                "plddt_head_enabled": False,
+                "torsion_head_enabled": False,
+            },
+            4: {
+                "use_block_specific_params": True,
+            },
+            5: {
+                "evoformer_enabled": False,
+                "recycle_pair_enabled": False,
+                "recycle_position_enabled": False,
+            },
+        }
+        if ablation_id not in mapping:
+            valid = ", ".join(str(key) for key in sorted(key for key in mapping if key is not None))
+            raise ValueError(f"Unsupported AlphaFold2 ablation '{ablation}'. Valid ids: {valid}")
+        return mapping[ablation_id]
+
     def __init__(
         self,
         n_tokens,
@@ -47,14 +96,66 @@ class AlphaFold2(nn.Module):
         num_res_blocks_torsion=2,
         recycle_min_bin=3.25,
         recycle_max_bin=20.75,
-        recycle_dist_bins=15):
+        recycle_dist_bins=15,
+        ablation=None,
+        evoformer_enabled=True,
+        evoformer_pair_stack_enabled=True,
+        evoformer_triangle_multiplication_enabled=True,
+        evoformer_triangle_attention_enabled=True,
+        evoformer_pair_transition_enabled=True,
+        recycle_pair_enabled=True,
+        recycle_position_enabled=True,
+        structure_pair_context_enabled=True,
+        distogram_head_enabled=True,
+        plddt_head_enabled=True,
+        torsion_head_enabled=True):
 
         super().__init__()
+        ablation_defaults = self.resolve_ablation_defaults(ablation)
+        use_block_specific_params = ablation_defaults.get("use_block_specific_params", use_block_specific_params)
+        evoformer_enabled = ablation_defaults.get("evoformer_enabled", evoformer_enabled)
+        evoformer_pair_stack_enabled = ablation_defaults.get(
+            "evoformer_pair_stack_enabled",
+            evoformer_pair_stack_enabled,
+        )
+        evoformer_triangle_multiplication_enabled = ablation_defaults.get(
+            "evoformer_triangle_multiplication_enabled",
+            evoformer_triangle_multiplication_enabled,
+        )
+        evoformer_triangle_attention_enabled = ablation_defaults.get(
+            "evoformer_triangle_attention_enabled",
+            evoformer_triangle_attention_enabled,
+        )
+        evoformer_pair_transition_enabled = ablation_defaults.get(
+            "evoformer_pair_transition_enabled",
+            evoformer_pair_transition_enabled,
+        )
+        recycle_pair_enabled = ablation_defaults.get("recycle_pair_enabled", recycle_pair_enabled)
+        recycle_position_enabled = ablation_defaults.get("recycle_position_enabled", recycle_position_enabled)
+        structure_pair_context_enabled = ablation_defaults.get(
+            "structure_pair_context_enabled",
+            structure_pair_context_enabled,
+        )
+        distogram_head_enabled = ablation_defaults.get("distogram_head_enabled", distogram_head_enabled)
+        plddt_head_enabled = ablation_defaults.get("plddt_head_enabled", plddt_head_enabled)
+        torsion_head_enabled = ablation_defaults.get("torsion_head_enabled", torsion_head_enabled)
 
+        self.ablation = self._normalize_ablation_id(ablation)
         self.c_z = c_z
         self.recycle_min_bin = float(recycle_min_bin)
         self.recycle_max_bin = float(recycle_max_bin)
         self.recycle_dist_bins = int(recycle_dist_bins)
+        self.evoformer_enabled = bool(evoformer_enabled)
+        self.evoformer_pair_stack_enabled = bool(evoformer_pair_stack_enabled)
+        self.evoformer_triangle_multiplication_enabled = bool(evoformer_triangle_multiplication_enabled)
+        self.evoformer_triangle_attention_enabled = bool(evoformer_triangle_attention_enabled)
+        self.evoformer_pair_transition_enabled = bool(evoformer_pair_transition_enabled)
+        self.recycle_pair_enabled = bool(recycle_pair_enabled)
+        self.recycle_position_enabled = bool(recycle_position_enabled)
+        self.structure_pair_context_enabled = bool(structure_pair_context_enabled)
+        self.distogram_head_enabled = bool(distogram_head_enabled)
+        self.plddt_head_enabled = bool(plddt_head_enabled)
+        self.torsion_head_enabled = bool(torsion_head_enabled)
 
 
         # Tokens de Entrada
@@ -71,7 +172,12 @@ class AlphaFold2(nn.Module):
         self.evoformer = EvoformerStack(
             num_blocks=num_evoformer_blocks,
             c_m=c_m,
-            c_z=c_z , transition_expansion=transition_expansion_evoformer)
+            c_z=c_z,
+            transition_expansion=transition_expansion_evoformer,
+            pair_stack_enabled=self.evoformer_pair_stack_enabled,
+            triangle_multiplication_enabled=self.evoformer_triangle_multiplication_enabled,
+            triangle_attention_enabled=self.evoformer_triangle_attention_enabled,
+            pair_transition_enabled=self.evoformer_pair_transition_enabled)
 
         self.single_proj = SingleProjection(c_m=c_m, c_s=c_s)
 
@@ -88,8 +194,22 @@ class AlphaFold2(nn.Module):
         self.recycle_pair_norm = nn.LayerNorm(c_z)
         self.recycle_pos_embedding = nn.Embedding(self.recycle_dist_bins, c_z)
 
+        self._freeze_module(self.evoformer, enabled=self.evoformer_enabled)
+        self._freeze_module(self.recycle_pair_norm, enabled=self.recycle_pair_enabled)
+        self._freeze_module(self.recycle_pos_embedding, enabled=self.recycle_position_enabled)
+        self._freeze_module(self.distogram_head, enabled=self.distogram_head_enabled)
+        self._freeze_module(self.plddt_head, enabled=self.plddt_head_enabled)
+        self._freeze_module(self.torsion_head, enabled=self.torsion_head_enabled)
+
+    @staticmethod
+    def _freeze_module(module, *, enabled):
+        if enabled:
+            return
+        for parameter in module.parameters():
+            parameter.requires_grad = False
+
     def _apply_recycle_pair_update(self, z, prev_pair, pair_mask=None):
-        if prev_pair is None:
+        if (not self.recycle_pair_enabled) or (prev_pair is None):
             return z
 
         z = z + self.recycle_pair_norm(prev_pair)
@@ -124,6 +244,11 @@ class AlphaFold2(nn.Module):
             ca_index = 1 if backbone_coords.shape[-2] > 1 else 0
             return backbone_coords[:, :, ca_index, :]
         return t
+
+    def _build_structure_pair_input(self, z):
+        if self.structure_pair_context_enabled:
+            return z
+        return torch.zeros_like(z)
 
 
     def forward(
@@ -168,7 +293,7 @@ class AlphaFold2(nn.Module):
                 pair_mask=pair_mask,
             )
 
-            if prev_positions is not None:
+            if self.recycle_position_enabled and prev_positions is not None:
                 z = z + self._positions_to_recycle_dgram(
                     prev_positions,
                     dtype=z.dtype,
@@ -176,18 +301,20 @@ class AlphaFold2(nn.Module):
                 )
 
             # evoformer
-            m, z = self.evoformer(
-                m,
-                z,
-                msa_mask=msa_mask,
-                pair_mask=pair_mask,)
+            if self.evoformer_enabled:
+                m, z = self.evoformer(
+                    m,
+                    z,
+                    msa_mask=msa_mask,
+                    pair_mask=pair_mask,)
 
             # z before structure for distogram
-            distogram_logits = self.distogram_head(z)
+            distogram_logits = self.distogram_head(z) if self.distogram_head_enabled else None
 
             # single repr + structure
             s0 = self.single_proj(m)
-            s, R, t = self.structure_module(s0, z, mask=seq_mask)
+            structure_pair = self._build_structure_pair_input(z)
+            s, R, t = self.structure_module(s0, structure_pair, mask=seq_mask)
 
             # backbone coordinates from ideal local atoms
             backbone_coords = None
@@ -213,8 +340,11 @@ class AlphaFold2(nn.Module):
             # torsions and confidence
             s_initial = s0
             s_final = s
-            torsions = self.torsion_head(s_initial, s_final, mask=seq_mask)
-            plddt_logits, plddt = self.plddt_head(s)
+            torsions = self.torsion_head(s_initial, s_final, mask=seq_mask) if self.torsion_head_enabled else None
+            if self.plddt_head_enabled:
+                plddt_logits, plddt = self.plddt_head(s)
+            else:
+                plddt_logits, plddt = None, None
 
             outputs = {
                 "m": m,

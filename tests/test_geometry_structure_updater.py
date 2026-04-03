@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from model.quaterion_to_matrix import compose_frames, quaternion_to_rotation_matrix
+from model.quaternion_to_matrix import compose_frames, quaternion_to_rotation_matrix
 from model.structure_transation import BackboneUpdate, StructureTransition
 
 # ============================================================

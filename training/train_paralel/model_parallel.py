@@ -30,6 +30,13 @@ class AlphaFold2ModelParallel(nn.Module):
         self.recycle_min_bin = float(model.recycle_min_bin)
         self.recycle_max_bin = float(model.recycle_max_bin)
         self.recycle_dist_bins = int(model.recycle_dist_bins)
+        self.evoformer_enabled = bool(getattr(model, "evoformer_enabled", True))
+        self.recycle_pair_enabled = bool(getattr(model, "recycle_pair_enabled", True))
+        self.recycle_position_enabled = bool(getattr(model, "recycle_position_enabled", True))
+        self.structure_pair_context_enabled = bool(getattr(model, "structure_pair_context_enabled", True))
+        self.distogram_head_enabled = bool(getattr(model, "distogram_head_enabled", True))
+        self.plddt_head_enabled = bool(getattr(model, "plddt_head_enabled", True))
+        self.torsion_head_enabled = bool(getattr(model, "torsion_head_enabled", True))
 
         self.input_embedder = model.input_embedder.to(self.input_device)
         self.evoformer = model.evoformer.to(self.input_device)
@@ -53,7 +60,7 @@ class AlphaFold2ModelParallel(nn.Module):
         return tensor.to(self.output_device, non_blocking=True)
 
     def _apply_recycle_pair_update(self, z, prev_pair, pair_mask=None):
-        if prev_pair is None:
+        if (not self.recycle_pair_enabled) or (prev_pair is None):
             return z
 
         z = z + self.recycle_pair_norm(prev_pair)
@@ -88,6 +95,11 @@ class AlphaFold2ModelParallel(nn.Module):
             ca_index = 1 if backbone_coords.shape[-2] > 1 else 0
             return backbone_coords[:, :, ca_index, :]
         return t
+
+    def _build_structure_pair_input(self, z):
+        if self.structure_pair_context_enabled:
+            return z
+        return torch.zeros_like(z)
 
     def forward(
         self,
@@ -127,27 +139,29 @@ class AlphaFold2ModelParallel(nn.Module):
                 pair_mask=pair_mask_input,
             )
 
-            if prev_positions is not None:
+            if self.recycle_position_enabled and prev_positions is not None:
                 z = z + self._positions_to_recycle_dgram(
                     prev_positions,
                     dtype=z.dtype,
                     pair_mask=pair_mask_input,
                 )
 
-            m, z = self.evoformer(
-                m,
-                z,
-                msa_mask=msa_mask_input,
-                pair_mask=pair_mask_input,
-            )
+            if self.evoformer_enabled:
+                m, z = self.evoformer(
+                    m,
+                    z,
+                    msa_mask=msa_mask_input,
+                    pair_mask=pair_mask_input,
+                )
 
             m_output = self._to_output_device(m)
             z_output = self._to_output_device(z)
             seq_mask_output = self._to_output_device(seq_mask_input)
 
-            distogram_logits = self.distogram_head(z_output)
+            distogram_logits = self.distogram_head(z_output) if self.distogram_head_enabled else None
             s0 = self.single_proj(m_output)
-            s, R, t = self.structure_module(s0, z_output, mask=seq_mask_output)
+            structure_pair = self._build_structure_pair_input(z_output)
+            s, R, t = self.structure_module(s0, structure_pair, mask=seq_mask_output)
 
             backbone_coords = None
             if ideal_backbone_local is not None:
@@ -167,8 +181,11 @@ class AlphaFold2ModelParallel(nn.Module):
                     ideal_backbone_output,
                 )
 
-            torsions = self.torsion_head(s0, s, mask=seq_mask_output)
-            plddt_logits, plddt = self.plddt_head(s)
+            torsions = self.torsion_head(s0, s, mask=seq_mask_output) if self.torsion_head_enabled else None
+            if self.plddt_head_enabled:
+                plddt_logits, plddt = self.plddt_head(s)
+            else:
+                plddt_logits, plddt = None, None
 
             outputs = {
                 "m": m_output,

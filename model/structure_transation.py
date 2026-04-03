@@ -8,7 +8,7 @@ for each residue during structural refinement.
 import torch
 import torch.nn as nn
 import math
-from model.quaterion_to_matrix import *
+from model.quaternion_to_matrix import *
 
 
 class StructureTransition(nn.Module):

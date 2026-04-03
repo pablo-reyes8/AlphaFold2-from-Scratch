@@ -116,9 +116,17 @@ class EvoformerBlock(nn.Module):
         c_hidden_msa_att=32,
         c_hidden_pair_att=32,
         transition_expansion=4,
-        dropout=0.15):
+        dropout=0.15,
+        pair_stack_enabled=True,
+        triangle_multiplication_enabled=True,
+        triangle_attention_enabled=True,
+        pair_transition_enabled=True):
 
         super().__init__()
+        self.pair_stack_enabled = bool(pair_stack_enabled)
+        self.triangle_multiplication_enabled = bool(triangle_multiplication_enabled)
+        self.triangle_attention_enabled = bool(triangle_attention_enabled)
+        self.pair_transition_enabled = bool(pair_transition_enabled)
 
 
         self.msa_row_attn = MSARowAttentionWithPairBias(
@@ -165,7 +173,35 @@ class EvoformerBlock(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
+        self._freeze_module(
+            self.tri_mul_out,
+            enabled=self.pair_stack_enabled and self.triangle_multiplication_enabled,
+        )
+        self._freeze_module(
+            self.tri_mul_in,
+            enabled=self.pair_stack_enabled and self.triangle_multiplication_enabled,
+        )
+        self._freeze_module(
+            self.tri_attn_start,
+            enabled=self.pair_stack_enabled and self.triangle_attention_enabled,
+        )
+        self._freeze_module(
+            self.tri_attn_end,
+            enabled=self.pair_stack_enabled and self.triangle_attention_enabled,
+        )
+        self._freeze_module(
+            self.pair_transition,
+            enabled=self.pair_stack_enabled and self.pair_transition_enabled,
+        )
+
         self._zero_init_residual_projections()
+
+    @staticmethod
+    def _freeze_module(module, *, enabled):
+        if enabled:
+            return
+        for parameter in module.parameters():
+            parameter.requires_grad = False
 
     def _zero_init_residual_projections(self):
         # final residual projections in each submodule
@@ -189,10 +225,16 @@ class EvoformerBlock(nn.Module):
         z = z + self.dropout(self.outer_product_mean(m, msa_mask))
 
         # ----- Pair stack -----
-        z = z + self.dropout(self.tri_mul_out(z, pair_mask))
-        z = z + self.dropout(self.tri_mul_in(z, pair_mask))
-        z = z + self.dropout(self.tri_attn_start(z, pair_mask))
-        z = z + self.dropout(self.tri_attn_end(z, pair_mask))
-        z = z + self.dropout(self.pair_transition(z, pair_mask))
+        if self.pair_stack_enabled:
+            if self.triangle_multiplication_enabled:
+                z = z + self.dropout(self.tri_mul_out(z, pair_mask))
+                z = z + self.dropout(self.tri_mul_in(z, pair_mask))
+
+            if self.triangle_attention_enabled:
+                z = z + self.dropout(self.tri_attn_start(z, pair_mask))
+                z = z + self.dropout(self.tri_attn_end(z, pair_mask))
+
+            if self.pair_transition_enabled:
+                z = z + self.dropout(self.pair_transition(z, pair_mask))
 
         return m, z

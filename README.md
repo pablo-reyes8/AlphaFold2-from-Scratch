@@ -26,7 +26,7 @@ This repository provides a **from-scratch, modular PyTorch implementation of the
 
 While the original DeepMind release and frameworks like OpenFold are designed for large-scale production, this project is built for **architectural transparency, research experimentation, and hands-on learning**. It breaks down the structural biology pipeline into inspectable, hackable modules, allowing researchers and students to study how Multiple Sequence Alignments (MSA), pair representations, and geometric heads interact at the tensor level.
 
-It is also designed with accessibility in mind for people who do not have access to large training clusters. For that reason, we include `notebooks/Alpha_Fold_Spanish.ipynb`, a complete notebook that makes it easier to explore the project end-to-end from environments such as **Google Colab** or **Kaggle**, without needing a heavy local setup.
+It is also designed with accessibility in mind for people who do not have access to large training clusters. For that reason, we include [notebooks/Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb), a complete notebook that makes it easier to explore the project end-to-end from environments such as **Google Colab** or **Kaggle**, without needing a heavy local setup.
 
 More broadly, the goal is to make this architecture genuinely accessible to study: anyone should be able to inspect, modify, and run meaningful experiments with the model, adapting its scale to the hardware they actually have rather than being excluded by the need for large training infrastructure.
 
@@ -54,7 +54,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 * **Foldbench Support:** Includes scripts to download and preprocess a subset of Foldbench.
 * **Config-Driven Experiments:** Main settings such as model size, depth, learning rate, and EMA can be adjusted through YAML files.
 * **Data Inspection Utilities:** Provides simple CLI tools to inspect manifests, preview A3M files, and visualize CA distance maps before training.
-* **Notebook-Friendly Workflow:** A complete notebook is included in `notebooks/Alpha_Fold.ipynb` so the full pipeline can also be explored interactively in Colab or Kaggle.
+* **Notebook-Friendly Workflow:** The main walkthrough notebook is [notebooks/Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb), and a local training-focused version is available in [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb).
 
 ---
 
@@ -95,20 +95,28 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 
 ### Key files
 
-- `data/download_data.sh` — downloads the Foldbench subset using a target file or CSV input.
-- `data/preproces_data.py` — builds or rewrites the manifest and emits YAML summaries.
-- `data/dataloaders.py` — dataset code supporting both manifest-based and raw-folder loading.
-- `data/visualize_data.py` — command-line inspection utilities for manifests, A3M previews, and CA distance maps.
-- `scripts/prepare_data.py` — high-level CLI to download data, refresh manifests, and smoke-test dataloaders.
-- `scripts/inspect_data.py` — concise dataset inspection CLI, including batch previews and a simple 3D backbone renderer.
-- `scripts/validate_model.py` — instantiates the model stack, runs synthetic forward validation, and dispatches pytest.
-- `scripts/train_model.py` — config-driven launcher for end-to-end training runs.
-- `config/experiments/af2_poc.yaml` — lightweight proof-of-concept experiment config.
-- `config/experiments/alphafold2_full_reference.yaml` — reference values collected from AlphaFold/OpenFold-style configs.
+- [data/download_data.sh](data/download_data.sh) — downloads the Foldbench subset from a target list or CSV input.
+- [data/preproces_data.py](data/preproces_data.py) — rebuilds manifests, normalizes local paths, and emits YAML summaries.
+- [data/dataloaders.py](data/dataloaders.py) — dataset layer that maps manifests, mmCIF structures, MSA files, and torsion targets into tensors.
+- [scripts/prepare_data.py](scripts/prepare_data.py) — high-level CLI for downloading data, refreshing manifests, and smoke-testing loaders.
+- [model/alphafold2.py](model/alphafold2.py) — top-level AlphaFold2-like model that wires embeddings, Evoformer, structure, recycling, and heads.
+- [model/evoformer_stack.py](model/evoformer_stack.py) — stacked Evoformer trunk used to refine MSA and pair representations.
+- [model/structure_block.py](model/structure_block.py) — structure module built around IPA, transitions, and rigid-frame updates.
+- [model/alphafold2_full_loss.py](model/alphafold2_full_loss.py) — full training loss orchestrator combining FAPE, distogram, pLDDT, and torsion supervision.
+- [model/losses/](model/losses/) — component losses and helpers for geometry-aware supervision.
+- [training/train_one_epoch.py](training/train_one_epoch.py) — per-epoch optimization routine with AMP, recycling, logging, and metric collection.
+- [training/train_alphafold2.py](training/train_alphafold2.py) — full training orchestrator for checkpointing, resume, monitoring, and epoch scheduling.
+- [training/train_paralel/data_parallel.py](training/train_paralel/data_parallel.py) — DDP utilities, distributed samplers, and rank synchronization helpers.
+- [training/train_paralel/model_parallel.py](training/train_paralel/model_parallel.py) — two-stage model-parallel wrapper for splitting AlphaFold2 across GPUs.
+- [scripts/train_model.py](scripts/train_model.py) — standard config-driven single-device training launcher.
+- [scripts/train_parallel.py](scripts/train_parallel.py) — multi-GPU launcher for DDP, model parallelism, and hybrid setups.
+- [config/experiments/af2_poc.yaml](config/experiments/af2_poc.yaml) — lightweight proof-of-concept experiment config.
+- [config/experiments/alphafold2_full_reference.yaml](config/experiments/alphafold2_full_reference.yaml) — broader AlphaFold/OpenFold-style reference config.
+- [notebooks/Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb) — end-to-end interactive walkthrough for Colab or local exploration.
 
 ### Bundled test data
 
-The repository includes a tiny downloaded test subset under `data/af_subset_showcase` together with `data/showcase_manifest.csv`, so the data pipeline can be sanity-checked without downloading the full dataset first.
+The repository includes a tiny downloaded test subset under [data/af_subset_showcase](data/af_subset_showcase) together with [data/showcase_manifest.csv](data/showcase_manifest.csv), so the data pipeline can be sanity-checked without downloading the full dataset first.
 
 ---
 
@@ -173,7 +181,7 @@ dataset = FoldbenchProteinDataset(manifest_csv="data/Proteinas_secuencias.csv")
 
 ### Minimal Python setup
 
-The full notebook `notebooks/train_model_local.ipynb` version exposes many knobs, but the smallest useful training setup looks like this:
+The full notebook [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb) exposes many knobs, but the smallest useful training setup looks like this:
 
 ```python
 import torch
@@ -314,7 +322,7 @@ python3 scripts/train_model.py \
 
 ## Configs
 
-### `config/experiments/af2_poc.yaml`
+### [config/experiments/af2_poc.yaml](config/experiments/af2_poc.yaml)
 
 This config mirrors the current notebook-scale proof of concept and is suitable for smaller experimental runs.
 
@@ -327,7 +335,7 @@ Current example values:
 - `num_evoformer_blocks: 2`
 - `num_structure_blocks: 4`
 
-### `config/experiments/alphafold2_full_reference.yaml`
+### [config/experiments/alphafold2_full_reference.yaml](config/experiments/alphafold2_full_reference.yaml)
 
 This file is a **reference document**, not a statement that the current code already consumes every field end-to-end.
 

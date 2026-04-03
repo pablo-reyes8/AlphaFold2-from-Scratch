@@ -1,8 +1,9 @@
 """Composite AlphaFold-style loss orchestration.
 
-This module combines FAPE, distogram, pLDDT, and torsion supervision into the
-single loss dictionary consumed by the training loop. It acts as the contract
-between model outputs and the structural targets prepared by the dataloader.
+This module combines final-structure FAPE, intermediate structure auxiliary
+losses, distogram, pLDDT, and torsion supervision into the single loss
+dictionary consumed by the training loop. It acts as the contract between
+model outputs and the structural targets prepared by the dataloader.
 """
 
 import torch 
@@ -13,6 +14,7 @@ from model.losses.pLDDT_loss import *
 from model.losses.distogram_loss import * 
 from model.losses.torsion_loss import * 
 from model.losses.loss_helpers import *
+from model.losses.structure_aux_loss import StructureAuxLoss
 
 class AlphaFoldLoss(nn.Module):
     """
@@ -21,6 +23,7 @@ class AlphaFoldLoss(nn.Module):
     Weighted sum:
         loss = (
             0.5  * fape_loss +
+            0.5  * aux_loss +
             0.3  * dist_loss +
             0.01 * plddt_loss +
             0.01 * torsion_loss
@@ -46,7 +49,7 @@ class AlphaFoldLoss(nn.Module):
             None: {},
             1: {"w_plddt": 0.0},
             2: {"w_plddt": 0.0},
-            3: {"w_dist": 0.0, "w_plddt": 0.0, "w_torsion": 0.0},
+            3: {"w_aux": 0.0, "w_dist": 0.0, "w_plddt": 0.0, "w_torsion": 0.0},
             4: {},
             5: {},
         }
@@ -66,6 +69,7 @@ class AlphaFoldLoss(nn.Module):
         plddt_inclusion_radius=15.0,
         ablation=None,
         w_fape=0.5,
+        w_aux=0.5,
         w_dist=0.3,
         w_plddt=0.01,
         w_torsion=0.01,):
@@ -74,6 +78,7 @@ class AlphaFoldLoss(nn.Module):
         ablation_defaults = self.resolve_ablation_defaults(ablation)
         self.ablation = self._normalize_ablation_id(ablation)
         w_fape = ablation_defaults.get("w_fape", w_fape)
+        w_aux = ablation_defaults.get("w_aux", w_aux)
         w_dist = ablation_defaults.get("w_dist", w_dist)
         w_plddt = ablation_defaults.get("w_plddt", w_plddt)
         w_torsion = ablation_defaults.get("w_torsion", w_torsion)
@@ -93,8 +98,14 @@ class AlphaFoldLoss(nn.Module):
             inclusion_radius=plddt_inclusion_radius)
 
         self.torsion_loss_fn = TorsionLoss()
+        self.aux_loss_fn = StructureAuxLoss(
+            fape_length_scale=fape_length_scale,
+            fape_clamp_distance=fape_clamp_distance,
+            fape_eps=1e-12,
+        )
 
         self.w_fape = w_fape
+        self.w_aux = w_aux
         self.w_dist = w_dist
         self.w_plddt = w_plddt
         self.w_torsion = w_torsion
@@ -167,6 +178,26 @@ class AlphaFoldLoss(nn.Module):
         else:
             fape_loss = zero
 
+        if self.w_aux > 0.0:
+            aux_loss_dict = self.aux_loss_fn(
+                R_blocks=out.get("aux_R", None),
+                t_blocks=out.get("aux_t", None),
+                R_true=R_true,
+                t_true=t_true,
+                coords_ca=coords_ca,
+                backbone_mask=backbone_mask,
+                torsion_blocks=out.get("aux_torsions", None),
+                torsion_true=batch.get("torsion_true", None),
+                torsion_mask=batch.get("torsion_mask", None),
+            )
+            aux_loss = aux_loss_dict["aux_loss"]
+            aux_fape_loss = aux_loss_dict["aux_fape_loss"]
+            aux_torsion_loss = aux_loss_dict["aux_torsion_loss"]
+        else:
+            aux_loss = zero
+            aux_fape_loss = zero
+            aux_torsion_loss = zero
+
         if (self.w_dist > 0.0) and (out.get("distogram_logits", None) is not None):
             dist_loss = self.dist_loss_fn(
                 distogram_logits=out["distogram_logits"],
@@ -202,6 +233,7 @@ class AlphaFoldLoss(nn.Module):
         # Weighted total
         total_loss = (
             self.w_fape * fape_loss +
+            self.w_aux * aux_loss +
             self.w_dist * dist_loss +
             self.w_plddt * plddt_loss +
             self.w_torsion * torsion_loss)
@@ -209,6 +241,9 @@ class AlphaFoldLoss(nn.Module):
         return {
             "loss": total_loss,
             "fape_loss": fape_loss.detach(),
+            "aux_loss": aux_loss.detach(),
+            "aux_fape_loss": aux_fape_loss.detach(),
+            "aux_torsion_loss": aux_torsion_loss.detach(),
             "dist_loss": dist_loss.detach(),
             "plddt_loss": plddt_loss.detach(),
             "torsion_loss": torsion_loss.detach()}

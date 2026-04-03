@@ -14,30 +14,62 @@ from model.ipa_transformations import *
 
 class InvariantPointAttention(nn.Module):
     """
+    AlphaFold2 Invariant Point Attention (IPA).
+
+    Notes
+    -----
+    This implementation keeps the original IPA formulation:
+    - scalar attention term
+    - pair bias term
+    - invariant point-distance term with canonical w_L and w_C scaling
+    - pair aggregation as sum_j a_ij * z_ij
+    - point-value aggregation in global frame followed by projection back to
+      the local frame of residue i
+
+    This class is configured below with reduced dimensions for small-dataset /
+    memory-constrained experiments.
+
+    Canonical AlphaFold2 Structure Module IPA values from the supplement:
+    - num_heads = 12
+    - c_hidden = 16
+    - num_qk_points = 4
+    - num_v_points = 8
+
     Inputs
     ------
     s : [B, L, c_s]
+        Single representation.
     z : [B, L, L, c_z]
+        Pair representation.
     R : [B, L, 3, 3]
+        Rotation matrices of current residue frames.
     t : [B, L, 3]
-    mask : [B, L] (optional)
+        Translation vectors of current residue frames.
+    mask : [B, L], optional
+        Residue mask.
 
     Returns
     -------
-    s_update   : [B, L, c_s]
-    attn       : [B, H, L, L]
+    s_update : [B, L, c_s]
+        Single-representation update produced by IPA.
+    attn : [B, H, L, L]
+        Attention weights over residues.
     """
 
     def __init__(
         self,
         c_s=256,
         c_z=128,
-        num_heads=8,
-        c_hidden=32,
-        num_qk_points=4,
-        num_v_points=8,):
-
+        num_heads=8,       # AF2 canonical: 12
+        c_hidden=16,       # AF2 canonical: 16
+        num_qk_points=4,   # AF2 canonical: 4
+        num_v_points=8,    # AF2 canonical: 8
+    ):
+        
         super().__init__()
+        assert c_s > 0 and c_z > 0
+        assert num_heads > 0 and c_hidden > 0
+        assert num_qk_points > 0 and num_v_points > 0
         assert c_s > 0 and c_z > 0
 
         self.c_s = c_s
@@ -66,15 +98,12 @@ class InvariantPointAttention(nn.Module):
         # trainable positive weights for spatial logits, one per head
         self.point_weights = nn.Parameter(torch.zeros(num_heads))
 
-        # pair representation attended back into single update
-        self.linear_pair_out = nn.Linear(c_z, num_heads * 4, bias=False)
-
         # final projection back to single representation
         out_dim = (
             num_heads * c_hidden +          # scalar attended values
             num_heads * num_v_points * 3 +  # local point outputs
             num_heads * num_v_points +      # norms of local point outputs
-            num_heads * 4                   # attended pair features
+            num_heads * c_z                 # attended pair features
         )
 
         self.output_linear = nn.Linear(out_dim, c_s)
@@ -128,14 +157,16 @@ class InvariantPointAttention(nn.Module):
         sq_dist = (diff ** 2).sum(dim=-1).sum(dim=-1)   # [B, i, j, H]
         sq_dist = sq_dist.permute(0, 3, 1, 2)           # [B, H, L, L]
 
-        point_weights = F.softplus(self.point_weights).view(1, H, 1, 1)
-        spatial_logits = -0.5 * point_weights * sq_dist
+        gamma = F.softplus(self.point_weights).view(1, H, 1, 1)
+        w_c = math.sqrt(2.0 / (9.0 * Pqk))
+        w_l = math.sqrt(1.0 / 3.0)
+        spatial_term = -0.5 * gamma * w_c * sq_dist
 
 
         # total logits + mask
-        logits = scalar_logits + pair_bias + spatial_logits # Los logits de atencion dependen de atencion normal de transformers + 
-                                                            # Informacion PairWise que viene de la z del evofermer + 
-                                                            # La parte invariant de los puntos cercanos (si i j estan cerca)
+        logits = w_l * (scalar_logits + pair_bias + spatial_term) # Los logits de atencion dependen de atencion normal de transformers + 
+                                                                  # Informacion PairWise que viene de la z del evofermer + 
+                                                                  # La parte invariant de los puntos cercanos (si i j estan cerca)
 
         if mask is not None:
             pair_mask = mask[:, :, None] * mask[:, None, :]   # [B,L,L]
@@ -150,9 +181,8 @@ class InvariantPointAttention(nn.Module):
 
 
         # pair feature aggregation
-        pair_v = self.linear_pair_out(z).view(B, L, L, H, 4)    # [B,i,j,H,4]
-        pair_out = torch.einsum("bhij,bijhd->bihd", attn, pair_v)  # [B,L,H,4] # Agregacion sobre lo aprendido del Evoformer z 
-        pair_out = pair_out.reshape(B, L, H * 4)
+        pair_out = torch.einsum("bhij,bijc->bihc", attn, z)  # [B,L,H,c_z]
+        pair_out = pair_out.reshape(B, L, H * self.c_z)
 
 
         # point value aggregation in global frame

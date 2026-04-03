@@ -90,6 +90,7 @@ def test_real_batch_alphafold_loss_orchestrator(loader, device="cpu"):
         plddt_num_bins=num_plddt_bins,
         plddt_inclusion_radius=15.0,
         w_fape=0.5,
+        w_aux=0.5,
         w_dist=0.3,
         w_plddt=0.01,
         w_torsion=0.01,
@@ -101,7 +102,7 @@ def test_real_batch_alphafold_loss_orchestrator(loader, device="cpu"):
     assert torch.isfinite(losses["loss"]), "Total AlphaFold loss is not finite"
     assert losses["loss"].ndim == 0, "Total loss should be scalar"
 
-    for name in ["fape_loss", "dist_loss", "plddt_loss", "torsion_loss"]:
+    for name in ["fape_loss", "aux_loss", "dist_loss", "plddt_loss", "torsion_loss"]:
         assert name in losses, f"Missing {name}"
         assert torch.isfinite(losses[name]), f"{name} is not finite"
 
@@ -257,6 +258,7 @@ def test_alphafold_loss_weighted_sum_exact():
 
     loss_fn = AlphaFoldLoss(
         w_fape=0.5,
+        w_aux=0.5,
         w_dist=0.3,
         w_plddt=0.01,
         w_torsion=0.01,
@@ -266,6 +268,7 @@ def test_alphafold_loss_weighted_sum_exact():
 
     manual = (
         0.5 * losses["fape_loss"] +
+        0.5 * losses["aux_loss"] +
         0.3 * losses["dist_loss"] +
         0.01 * losses["plddt_loss"] +
         0.01 * losses["torsion_loss"]
@@ -286,6 +289,7 @@ def test_alphafold_loss_without_torsion_targets():
     losses = loss_fn(out, batch_no_torsion)
 
     assert "torsion_loss" in losses
+    assert "aux_loss" in losses
     assert_close(
         losses["torsion_loss"],
         torch.zeros_like(losses["torsion_loss"]),
@@ -294,6 +298,45 @@ def test_alphafold_loss_without_torsion_targets():
         msg="torsion_loss should be zero if torsion supervision is missing"
     )
     assert_scalar_finite(losses["loss"], "total loss without torsion targets")
+
+def test_alphafold_loss_uses_intermediate_aux_outputs():
+    batch = make_fake_alphafold_batch(B=2, L=9)
+    out = make_fake_alphafold_out(batch)
+
+    R_true, t_true = build_backbone_frames(
+        batch["coords_n"],
+        batch["coords_ca"],
+        batch["coords_c"],
+        mask=batch["valid_backbone_mask"],
+    )
+
+    num_blocks = 3
+    out["aux_R"] = R_true.unsqueeze(0).repeat(num_blocks, 1, 1, 1, 1)
+    out["aux_t"] = t_true.unsqueeze(0).repeat(num_blocks, 1, 1, 1)
+    out["aux_torsions"] = batch["torsion_true"].unsqueeze(0).repeat(num_blocks, 1, 1, 1, 1)
+
+    loss_fn = AlphaFoldLoss(
+        w_fape=0.0,
+        w_aux=1.0,
+        w_dist=0.0,
+        w_plddt=0.0,
+        w_torsion=0.0,
+    )
+    losses = loss_fn(out, batch)
+
+    assert "aux_loss" in losses
+    assert "aux_fape_loss" in losses
+    assert "aux_torsion_loss" in losses
+    assert_scalar_finite(losses["aux_loss"], "aux_loss")
+    assert losses["aux_fape_loss"].item() < 2e-7, "Perfect intermediate frames should give ~0 aux FAPE"
+    assert losses["aux_torsion_loss"].item() < 1e-7, "Perfect intermediate torsions should give ~0 aux torsion"
+    assert_close(
+        losses["aux_loss"],
+        losses["aux_fape_loss"] + losses["aux_torsion_loss"],
+        atol=1e-7,
+        rtol=1e-7,
+        msg="aux_loss should equal aux_fape_loss + aux_torsion_loss",
+    )
 
 def test_alphafold_loss_uses_backbone_coords_when_present():
     batch = make_fake_alphafold_batch(B=2, L=10)
@@ -369,4 +412,3 @@ def run_alphafold_orchestrator_tests():
     test_alphafold_loss_without_torsion_targets()
     test_alphafold_loss_uses_backbone_coords_when_present()
     test_alphafold_loss_gradients_finite()
-

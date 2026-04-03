@@ -112,6 +112,7 @@ def toy_criterion():
         plddt_num_bins=50,
         plddt_inclusion_radius=15.0,
         w_fape=0.5,
+        w_aux=0.5,
         w_dist=0.3,
         w_plddt=0.01,
         w_torsion=0.01,

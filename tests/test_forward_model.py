@@ -51,13 +51,14 @@ def test_alphafold_loss_orchestrator_returns_finite_components(toy_model, toy_ba
         )
         losses = toy_criterion(outputs, toy_batch)
 
-    for name in ("loss", "fape_loss", "dist_loss", "plddt_loss", "torsion_loss"):
+    for name in ("loss", "fape_loss", "aux_loss", "dist_loss", "plddt_loss", "torsion_loss"):
         assert name in losses
         assert torch.isfinite(losses[name])
         assert losses[name].ndim == 0
 
     expected = (
         toy_criterion.w_fape * losses["fape_loss"]
+        + toy_criterion.w_aux * losses["aux_loss"]
         + toy_criterion.w_dist * losses["dist_loss"]
         + toy_criterion.w_plddt * losses["plddt_loss"]
         + toy_criterion.w_torsion * losses["torsion_loss"]

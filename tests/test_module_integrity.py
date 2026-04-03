@@ -22,6 +22,7 @@ MODULES = [
     "model.losses.fape_loss",
     "model.losses.loss_helpers",
     "model.losses.pLDDT_loss",
+    "model.losses.structure_aux_loss",
     "model.losses.torsion_loss",
     "model.msa_colum_attention",
     "model.msa_row_attention",

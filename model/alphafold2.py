@@ -14,6 +14,13 @@ from model.evoformer_stack import *
 from model.alphafold2_heads import * 
 from model.torsion_head import *
 from model.structure_block import *
+from model.recycling_module import RecyclingEmbedder
+from model.template_stack import (
+    TemplateStack,
+    augment_msa_mask_with_template_mask,
+    normalize_template_mask,
+)
+from model.extra_msa_stack import ExtraMsaStack
 
 class AlphaFold2(nn.Module):
     """
@@ -48,12 +55,14 @@ class AlphaFold2(nn.Module):
             None: {},
             1: {
                 "evoformer_pair_stack_enabled": False,
+                "recycle_single_enabled": False,
                 "recycle_pair_enabled": False,
                 "recycle_position_enabled": False,
                 "plddt_head_enabled": False,
             },
             2: {
                 "evoformer_triangle_attention_enabled": False,
+                "recycle_single_enabled": False,
                 "recycle_pair_enabled": False,
                 "recycle_position_enabled": False,
                 "plddt_head_enabled": False,
@@ -68,6 +77,7 @@ class AlphaFold2(nn.Module):
             },
             5: {
                 "evoformer_enabled": False,
+                "recycle_single_enabled": False,
                 "recycle_pair_enabled": False,
                 "recycle_position_enabled": False,
             },
@@ -99,12 +109,22 @@ class AlphaFold2(nn.Module):
         recycle_dist_bins=15,
         ablation=None,
         evoformer_enabled=True,
+        extra_msa_stack_enabled=True,
+        template_stack_enabled=True,
+        recycle_single_enabled=True,
         evoformer_pair_stack_enabled=True,
         evoformer_triangle_multiplication_enabled=True,
         evoformer_triangle_attention_enabled=True,
         evoformer_pair_transition_enabled=True,
         recycle_pair_enabled=True,
         recycle_position_enabled=True,
+        extra_msa_dim=25,
+        extra_msa_c_e=64,
+        extra_msa_num_blocks=4,
+        template_angle_dim=51,
+        template_pair_dim=88,
+        template_c_t=64,
+        template_num_blocks=2,
         structure_pair_context_enabled=True,
         distogram_head_enabled=True,
         plddt_head_enabled=True,
@@ -130,6 +150,7 @@ class AlphaFold2(nn.Module):
             "evoformer_pair_transition_enabled",
             evoformer_pair_transition_enabled,
         )
+        recycle_single_enabled = ablation_defaults.get("recycle_single_enabled", recycle_single_enabled)
         recycle_pair_enabled = ablation_defaults.get("recycle_pair_enabled", recycle_pair_enabled)
         recycle_position_enabled = ablation_defaults.get("recycle_position_enabled", recycle_position_enabled)
         structure_pair_context_enabled = ablation_defaults.get(
@@ -146,6 +167,9 @@ class AlphaFold2(nn.Module):
         self.recycle_max_bin = float(recycle_max_bin)
         self.recycle_dist_bins = int(recycle_dist_bins)
         self.evoformer_enabled = bool(evoformer_enabled)
+        self.extra_msa_stack_enabled = bool(extra_msa_stack_enabled)
+        self.template_stack_enabled = bool(template_stack_enabled)
+        self.recycle_single_enabled = bool(recycle_single_enabled)
         self.evoformer_pair_stack_enabled = bool(evoformer_pair_stack_enabled)
         self.evoformer_triangle_multiplication_enabled = bool(evoformer_triangle_multiplication_enabled)
         self.evoformer_triangle_attention_enabled = bool(evoformer_triangle_attention_enabled)
@@ -191,12 +215,38 @@ class AlphaFold2(nn.Module):
         self.plddt_head = PlddtHead(c_s=c_s, num_bins=plddt_bins)
         self.distogram_head = DistogramHead(c_z=c_z, num_bins=dist_bins)
         self.torsion_head = TorsionHead(c_s=c_s, n_torsions=n_torsions , num_res_blocks = num_res_blocks_torsion)
-        self.recycle_pair_norm = nn.LayerNorm(c_z)
-        self.recycle_pos_embedding = nn.Embedding(self.recycle_dist_bins, c_z)
+        self.recycling_embedder = RecyclingEmbedder(
+            c_m=c_m,
+            c_z=c_z,
+            min_bin=self.recycle_min_bin,
+            max_bin=self.recycle_max_bin,
+            num_bins=self.recycle_dist_bins,
+            recycle_single_enabled=self.recycle_single_enabled,
+            recycle_pair_enabled=self.recycle_pair_enabled,
+            recycle_position_enabled=self.recycle_position_enabled,
+        )
+        self.template_stack = TemplateStack(
+            c_m=c_m,
+            c_z=c_z,
+            template_angle_dim=template_angle_dim,
+            template_pair_dim=template_pair_dim,
+            c_t=template_c_t,
+            num_blocks=template_num_blocks,
+        )
+        self.extra_msa_stack = ExtraMsaStack(
+            c_m=c_m,
+            c_z=c_z,
+            extra_dim=extra_msa_dim,
+            c_e=extra_msa_c_e,
+            num_blocks=extra_msa_num_blocks,
+        )
 
         self._freeze_module(self.evoformer, enabled=self.evoformer_enabled)
-        self._freeze_module(self.recycle_pair_norm, enabled=self.recycle_pair_enabled)
-        self._freeze_module(self.recycle_pos_embedding, enabled=self.recycle_position_enabled)
+        self._freeze_module(self.extra_msa_stack, enabled=self.extra_msa_stack_enabled)
+        self._freeze_module(self.template_stack, enabled=self.template_stack_enabled)
+        self._freeze_module(self.recycling_embedder.single_norm, enabled=self.recycle_single_enabled)
+        self._freeze_module(self.recycling_embedder.pair_norm, enabled=self.recycle_pair_enabled)
+        self._freeze_module(self.recycling_embedder.pos_embedding, enabled=self.recycle_position_enabled)
         self._freeze_module(self.distogram_head, enabled=self.distogram_head_enabled)
         self._freeze_module(self.plddt_head, enabled=self.plddt_head_enabled)
         self._freeze_module(self.torsion_head, enabled=self.torsion_head_enabled)
@@ -208,42 +258,33 @@ class AlphaFold2(nn.Module):
         for parameter in module.parameters():
             parameter.requires_grad = False
 
+    @staticmethod
+    def _get_target_row_mask(seq_mask=None, msa_mask=None):
+        return RecyclingEmbedder.get_target_row_mask(seq_mask=seq_mask, msa_mask=msa_mask)
+
+    def _apply_recycle_single_update(self, m, prev_m1, row_mask=None):
+        return self.recycling_embedder._apply_single_recycle(m, prev_m1=prev_m1, row_mask=row_mask)
+
     def _apply_recycle_pair_update(self, z, prev_pair, pair_mask=None):
-        if (not self.recycle_pair_enabled) or (prev_pair is None):
-            return z
-
-        z = z + self.recycle_pair_norm(prev_pair)
-
-        if pair_mask is not None:
-            z = z * pair_mask.unsqueeze(-1)
-
-        return z
+        return self.recycling_embedder._apply_pair_recycle(z, prev_z=prev_pair, pair_mask=pair_mask)
 
     def _positions_to_recycle_dgram(self, positions, dtype, pair_mask=None):
-        deltas = positions[:, :, None, :] - positions[:, None, :, :]
-        sq_dist = deltas.pow(2).sum(dim=-1).float()
+        return self.recycling_embedder._positions_to_dgram_update(
+            positions,
+            dtype=dtype,
+            pair_mask=pair_mask,
+        )
 
-        boundaries = torch.linspace(
-            self.recycle_min_bin,
-            self.recycle_max_bin,
-            self.recycle_dist_bins - 1,
-            device=positions.device,
-            dtype=sq_dist.dtype,
-        ).pow(2)
+    @staticmethod
+    def _backbone_to_pseudo_beta(backbone_coords, seq_tokens=None):
+        return RecyclingEmbedder.backbone_to_pseudo_beta(backbone_coords, seq_tokens=seq_tokens)
 
-        bin_ids = torch.bucketize(sq_dist, boundaries)
-        recycle_update = self.recycle_pos_embedding(bin_ids).to(dtype=dtype)
-
-        if pair_mask is not None:
-            recycle_update = recycle_update * pair_mask.unsqueeze(-1)
-
-        return recycle_update
-
-    def _extract_recycle_positions(self, backbone_coords, t):
-        if backbone_coords is not None:
-            ca_index = 1 if backbone_coords.shape[-2] > 1 else 0
-            return backbone_coords[:, :, ca_index, :]
-        return t
+    def _extract_recycle_positions(self, seq_tokens, backbone_coords, t):
+        return RecyclingEmbedder.extract_prev_positions(
+            seq_tokens=seq_tokens,
+            backbone_coords=backbone_coords,
+            t=t,
+        )
 
     def _build_structure_pair_input(self, z):
         if self.structure_pair_context_enabled:
@@ -258,7 +299,13 @@ class AlphaFold2(nn.Module):
         seq_mask=None,
         msa_mask=None,
         ideal_backbone_local=None,
-        num_recycles: int = 0):
+        num_recycles: int = 0,
+        extra_msa_feat=None,
+        extra_msa_mask=None,
+        template_angle_feat=None,
+        template_pair_feat=None,
+        template_mask=None,
+    ):
         """
         ideal_backbone_local: [A, 3] or [1,1,A,3] or [B,L,A,3]
           e.g. local ideal coordinates for backbone atoms (N, CA, C, O)
@@ -275,6 +322,7 @@ class AlphaFold2(nn.Module):
             pair_mask = None
 
         num_recycles = max(0, int(num_recycles))
+        prev_m1 = None
         prev_pair = None
         prev_positions = None
         outputs = None
@@ -287,17 +335,65 @@ class AlphaFold2(nn.Module):
                 seq_mask=seq_mask,
                 msa_mask=msa_mask)
 
-            z = self._apply_recycle_pair_update(
+            m, z = self.recycling_embedder(
+                m,
                 z,
-                prev_pair=prev_pair,
-                pair_mask=pair_mask,
+                prev_m1=prev_m1,
+                prev_z=prev_pair,
+                prev_positions=prev_positions,
+                seq_mask=seq_mask,
+                msa_mask=msa_mask,
             )
 
-            if self.recycle_position_enabled and prev_positions is not None:
-                z = z + self._positions_to_recycle_dgram(
-                    prev_positions,
-                    dtype=z.dtype,
-                    pair_mask=pair_mask,
+            evoformer_msa_mask = msa_mask
+            original_msa_depth = m.shape[1]
+
+            if self.template_stack_enabled and (
+                template_angle_feat is not None or template_pair_feat is not None):
+
+                template_count = (
+                    template_angle_feat.shape[1]
+                    if template_angle_feat is not None
+                    else template_pair_feat.shape[1])
+                
+                template_row_mask = normalize_template_mask(
+                    template_mask,
+                    batch_size=m.shape[0],
+                    num_templates=template_count,
+                    length=m.shape[2],
+                    device=m.device,
+                    dtype=m.dtype,)
+                
+                m, z = self.template_stack(
+                    m,
+                    z,
+                    template_angle_feat=template_angle_feat,
+                    template_pair_feat=template_pair_feat,
+                    template_mask=template_row_mask)
+                
+                if template_angle_feat is not None:
+                    base_msa_mask = msa_mask
+                    if base_msa_mask is None:
+                        base_msa_mask = torch.ones(
+                            m.shape[0],
+                            original_msa_depth,
+                            m.shape[2],
+                            device=m.device,
+                            dtype=m.dtype,
+                        )
+                    evoformer_msa_mask = augment_msa_mask_with_template_mask(
+                        base_msa_mask,
+                        template_row_mask,
+                        length=m.shape[2],
+                    )
+
+            if self.extra_msa_stack_enabled and extra_msa_feat is not None:
+                m, z = self.extra_msa_stack(
+                    m,
+                    z,
+                    extra_msa_feat=extra_msa_feat,
+                    seq_mask=seq_mask,
+                    extra_msa_mask=extra_msa_mask,
                 )
 
             # evoformer
@@ -305,7 +401,7 @@ class AlphaFold2(nn.Module):
                 m, z = self.evoformer(
                     m,
                     z,
-                    msa_mask=msa_mask,
+                    msa_mask=evoformer_msa_mask,
                     pair_mask=pair_mask,)
 
             # z before structure for distogram
@@ -314,7 +410,12 @@ class AlphaFold2(nn.Module):
             # single repr + structure
             s0 = self.single_proj(m)
             structure_pair = self._build_structure_pair_input(z)
-            s, R, t = self.structure_module(s0, structure_pair, mask=seq_mask)
+            s, R, t, structure_intermediates = self.structure_module(
+                s0,
+                structure_pair,
+                mask=seq_mask,
+                return_intermediates=True,
+            )
 
             # backbone coordinates from ideal local atoms
             backbone_coords = None
@@ -341,6 +442,15 @@ class AlphaFold2(nn.Module):
             s_initial = s0
             s_final = s
             torsions = self.torsion_head(s_initial, s_final, mask=seq_mask) if self.torsion_head_enabled else None
+            aux_torsions = None
+            if self.torsion_head_enabled:
+                aux_torsions = torch.stack(
+                    [
+                        self.torsion_head(s_initial, s_block, mask=seq_mask)
+                        for s_block in structure_intermediates["single"]
+                    ],
+                    dim=0,
+                )
             if self.plddt_head_enabled:
                 plddt_logits, plddt = self.plddt_head(s)
             else:
@@ -354,13 +464,21 @@ class AlphaFold2(nn.Module):
                 "t": t,
                 "backbone_coords": backbone_coords,
                 "torsions": torsions,
+                "aux_R": structure_intermediates["R"],
+                "aux_t": structure_intermediates["t"],
+                "aux_torsions": aux_torsions,
                 "plddt_logits": plddt_logits,
                 "plddt": plddt,
                 "distogram_logits": distogram_logits,
             }
 
             if recycle_idx < num_recycles:
+                prev_m1 = m[:, 0, :, :].detach()
                 prev_pair = z.detach()
-                prev_positions = self._extract_recycle_positions(backbone_coords, t).detach()
+                prev_positions = self._extract_recycle_positions(
+                    seq_tokens=seq_tokens,
+                    backbone_coords=backbone_coords,
+                    t=t,
+                ).detach()
 
         return outputs

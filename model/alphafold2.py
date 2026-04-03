@@ -18,8 +18,8 @@ from model.recycling_module import RecyclingEmbedder
 from model.template_stack import (
     TemplateStack,
     augment_msa_mask_with_template_mask,
-    normalize_template_mask,
-)
+    normalize_template_mask)
+
 from model.extra_msa_stack import ExtraMsaStack
 
 class AlphaFold2(nn.Module):
@@ -320,6 +320,7 @@ class AlphaFold2(nn.Module):
             pair_mask = seq_mask[:, :, None] * seq_mask[:, None, :]
         else:
             pair_mask = None
+        target_row_mask = self._get_target_row_mask(seq_mask=seq_mask, msa_mask=msa_mask)
 
         num_recycles = max(0, int(num_recycles))
         prev_m1 = None
@@ -379,13 +380,12 @@ class AlphaFold2(nn.Module):
                             original_msa_depth,
                             m.shape[2],
                             device=m.device,
-                            dtype=m.dtype,
-                        )
+                            dtype=m.dtype)
+                        
                     evoformer_msa_mask = augment_msa_mask_with_template_mask(
                         base_msa_mask,
                         template_row_mask,
-                        length=m.shape[2],
-                    )
+                        length=m.shape[2])
 
             if self.extra_msa_stack_enabled and extra_msa_feat is not None:
                 m, z = self.extra_msa_stack(
@@ -393,8 +393,7 @@ class AlphaFold2(nn.Module):
                     z,
                     extra_msa_feat=extra_msa_feat,
                     seq_mask=seq_mask,
-                    extra_msa_mask=extra_msa_mask,
-                )
+                    extra_msa_mask=extra_msa_mask)
 
             # evoformer
             if self.evoformer_enabled:
@@ -414,8 +413,7 @@ class AlphaFold2(nn.Module):
                 s0,
                 structure_pair,
                 mask=seq_mask,
-                return_intermediates=True,
-            )
+                return_intermediates=True)
 
             # backbone coordinates from ideal local atoms
             backbone_coords = None

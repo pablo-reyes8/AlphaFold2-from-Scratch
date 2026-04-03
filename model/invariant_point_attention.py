@@ -76,6 +76,7 @@ class InvariantPointAttention(nn.Module):
             num_heads * num_v_points +      # norms of local point outputs
             num_heads * 4                   # attended pair features
         )
+
         self.output_linear = nn.Linear(out_dim, c_s)
 
     def forward(self, s, z, R, t, mask=None):
@@ -132,7 +133,9 @@ class InvariantPointAttention(nn.Module):
 
 
         # total logits + mask
-        logits = scalar_logits + pair_bias + spatial_logits
+        logits = scalar_logits + pair_bias + spatial_logits # Los logits de atencion dependen de atencion normal de transformers + 
+                                                            # Informacion PairWise que viene de la z del evofermer + 
+                                                            # La parte invariant de los puntos cercanos (si i j estan cerca)
 
         if mask is not None:
             pair_mask = mask[:, :, None] * mask[:, None, :]   # [B,L,L]
@@ -142,20 +145,20 @@ class InvariantPointAttention(nn.Module):
 
 
         # scalar value aggregation
-        scalar_out = torch.einsum("bhij,bjhc->bihc", attn, v)   # [B,L,H,C]
+        scalar_out = torch.einsum("bhij,bjhc->bihc", attn, v)   # [B,L,H,C] # Atencion estandar 
         scalar_out = scalar_out.reshape(B, L, H * C)
 
 
         # pair feature aggregation
         pair_v = self.linear_pair_out(z).view(B, L, L, H, 4)    # [B,i,j,H,4]
-        pair_out = torch.einsum("bhij,bijhd->bihd", attn, pair_v)  # [B,L,H,4]
+        pair_out = torch.einsum("bhij,bijhd->bihd", attn, pair_v)  # [B,L,H,4] # Agregacion sobre lo aprendido del Evoformer z 
         pair_out = pair_out.reshape(B, L, H * 4)
 
 
         # point value aggregation in global frame
         # -------------------------
         # v_pts_global: [B,j,H,Pv,3]
-        point_out_global = torch.einsum("bhij,bjhpc->bihpc", attn, v_pts_global)
+        point_out_global = torch.einsum("bhij,bjhpc->bihpc", attn, v_pts_global) # Cada residuo j atiende varios puntos 3d cercanos
         # [B,L,H,Pv,3]
 
         # global -> local frame of residue i

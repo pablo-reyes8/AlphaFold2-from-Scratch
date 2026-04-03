@@ -2,11 +2,11 @@
   <img src="assets/Inital Banner.png" width="1000"/>
 </p>
 
-# AlphaFold2:
+# AlphaFold2: From Scratch
 
 <div align="center">
 
-**Dissecting geometric deep learning and structural biology representations from scratch.**
+**A modular PyTorch reconstruction of AlphaFold2 built for architectural transparency, controlled ablations, and serious geometric deep learning research.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](#installation)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c.svg)](#installation)
@@ -15,7 +15,7 @@
 
 </div>
 
-> **🚧 Development Status:** This repository is a living research environment under active development. We are currently iterating on core architectural modules, optimizing the geometric forward pass, and expanding our structural validation suite. Updates are frequent as we refine the implementation toward full end-to-end parity with the AlphaFold2 design space.
+> **🚧 Development Status:** This repository is a living research environment under active development. We are iterating on core architectural modules, refining the geometric forward pass, and expanding the structural validation suite as we move toward a more complete and inspectable AlphaFold2 design space.
 
 ---
 

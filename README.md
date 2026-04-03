@@ -26,7 +26,7 @@ This repository provides a **from-scratch, modular PyTorch implementation of the
 
 While the original DeepMind release and frameworks like OpenFold are designed for large-scale production, this project is built for **architectural transparency, research experimentation, and hands-on learning**. It breaks down the structural biology pipeline into inspectable, hackable modules, allowing researchers and students to study how Multiple Sequence Alignments (MSA), pair representations, and geometric heads interact at the tensor level.
 
-It is also designed with accessibility in mind for people who do not have access to large training clusters. For that reason, we include [notebooks/Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb), a complete notebook that makes it easier to explore the project end-to-end from environments such as **Google Colab** or **Kaggle**, without needing a heavy local setup.
+It is also designed with accessibility in mind for people who do not have access to large training clusters. For that reason, we include [Alpha_Fold_English.ipynb](notebooks/Alpha_Fold_English.ipynb) and [Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb), a complete notebook that makes it easier to explore the project end-to-end from environments such as **Google Colab** or **Kaggle**, without needing a heavy local setup.
 
 More broadly, the goal is to make this architecture genuinely accessible to study: anyone should be able to inspect, modify, and run meaningful experiments with the model, adapting its scale to the hardware they actually have rather than being excluded by the need for large training infrastructure.
 
@@ -54,7 +54,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 * **Foldbench Support:** Includes scripts to download and preprocess a subset of Foldbench.
 * **Config-Driven Experiments:** Main settings such as model size, depth, learning rate, and EMA can be adjusted through YAML files.
 * **Data Inspection Utilities:** Provides simple CLI tools to inspect manifests, preview A3M files, and visualize CA distance maps before training.
-* **Notebook-Friendly Workflow:** The main walkthrough notebook is [notebooks/Alpha_Fold_Spanish.ipynb](notebooks/Alpha_Fold_Spanish.ipynb), and a local training-focused version is available in [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb).
+* **Notebook-Friendly Workflow:** The main walkthrough notebook is [Alpha_Fold_English.ipynb](notebooks/Alpha_Fold_English.ipynb), and a local training-focused version is available in [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb).
 
 ---
 
@@ -396,17 +396,36 @@ A realistic roadmap for this repository could include:
 
 ## Citation
 
-If this repository helps your work, please cite the repository and also cite the original AlphaFold and related implementation papers that inspired the architecture.
+If this repository contributes to your research, please cite:
 
-A simple placeholder BibTeX entry for the repository could look like:
+1. **This repository**, for the educational from-scratch implementation.
+2. **The original AlphaFold2 paper**, for the core architecture and methodology.
+
+A suggested BibTeX entry for this repository is:
 
 ```bibtex
-@software{reyes_alphafold2_from_scratch,
-  author = {Pablo Reyes},
-  title = {AlphaFold2 From Scratch},
-  year = {2026},
-  url = {https://github.com/pablo-reyes8/alpha-fold2}
+@software{reyes2026alphafold2,
+  author       = {Pablo Reyes},
+  title        = {AlphaFold2 From Scratch},
+  year         = {2026},
+  url          = {https://github.com/pablo-reyes8/alpha-fold2},
+  note         = {GitHub repository. From-scratch modular PyTorch implementation of core AlphaFold2 components for research, education, and experimentation.}
 }
+```
+Please also cite the foundational papers:
+
+```bibtex
+@article{jumper2021alphafold,
+  author  = {Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and Figurnov, Michael and Ronneberger, Olaf and Tunyasuvunakool, Kathryn and Bates, Russ and {\v{Z}}{\'\i}dek, Augustin and Potapenko, Anna and Bridgland, Alex and Meyer, Clemens and Kohl, Simon A. A. and Ballard, Andrew J. and Cowie, Andrew and Romera-Paredes, Bernardino and Nikolov, Stanislav and Jain, Rishub and Adler, Jonas and Back, Trevor and Petersen, Stig and Reiman, David and Clancy, Ellen and Zielinski, Michal and Steinegger, Martin and Pacholska, Michalina and Berghammer, Tamas and Bodenstein, Sebastian and Silver, David and Vinyals, Oriol and Senior, Andrew W. and Kavukcuoglu, Koray and Kohli, Pushmeet and Hassabis, Demis},
+  title   = {Highly accurate protein structure prediction with AlphaFold},
+  journal = {Nature},
+  volume  = {596},
+  number  = {7873},
+  pages   = {583--589},
+  year    = {2021},
+  doi     = {10.1038/s41586-021-03819-2}
+}
+
 ```
 
 ---

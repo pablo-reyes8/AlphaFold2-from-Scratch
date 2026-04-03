@@ -62,27 +62,32 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 
 ```text
 .
-├── config/
+├── config/                    # YAML configs for data paths and experiment presets
 │   ├── data/
-│   │   └── foldbench_subset.yaml
 │   └── experiments/
-│       ├── af2_poc.yaml
-│       └── alphafold2_full_reference.yaml
-├── data/
+├── data/                      # manifest-based data pipeline plus a tiny bundled showcase subset
 │   ├── download_data.sh
+│   ├── foldbench.py
 │   ├── preproces_data.py
 │   ├── dataloaders.py
+│   ├── collate_proteins.py
 │   ├── visualize_data.py
-│   └── Proteinas_secuencias.csv
-├── scripts/
+│   ├── showcase_manifest.csv
+│   └── af_subset_showcase/
+├── model/                     # AlphaFold2 architecture, heads, geometric blocks, and losses
+│   └── losses/
+├── training/                  # single-device training loop, AMP, EMA, checkpoints, and metrics
+│   └── train_paralel/         # DDP and model-parallel helpers
+├── scripts/                   # operational CLIs for data prep, validation, and training
 │   ├── prepare_data.py
 │   ├── inspect_data.py
 │   ├── validate_model.py
-│   └── train_model.py
-├── model/
-├── training/
-├── tests/
-├── notebooks/
+│   ├── train_model.py
+│   └── train_parallel.py
+├── tests/                     # data, model, loss, and CLI coverage
+├── notebooks/                 # interactive experiments for Colab or local exploration
+├── paper/                     # reference material from the AlphaFold paper and notes
+├── assets/                    # README visuals and showcase media
 ├── requirements.txt
 ├── Dockerfile
 └── README.md

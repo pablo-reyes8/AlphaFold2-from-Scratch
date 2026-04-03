@@ -130,7 +130,6 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 - [scripts/train_model.py](scripts/train_model.py) — standard config-driven single-device training launcher.
 - [scripts/train_parallel.py](scripts/train_parallel.py) — multi-GPU launcher for DDP, model parallelism, and hybrid setups.
 - [scripts/train_ablation.py](scripts/train_ablation.py) — single-device launcher for named architecture and loss ablations.
-- [scripts/train_ablation_parallel.py](scripts/train_ablation_parallel.py) — multi-GPU launcher for the same ablation presets.
 - [scripts/ablations/run_suite.py](scripts/ablations/run_suite.py) — runs multiple presets sequentially and exports a comparison table.
 - [scripts/ablations/README.md](scripts/ablations/README.md) — detailed documentation for the proposed ablation suite and each preset.
 

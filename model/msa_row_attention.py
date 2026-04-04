@@ -9,6 +9,8 @@ import math
 import torch
 import torch.nn as nn
 
+from model.msa_transitions import init_gate_linear
+
 
 class MSARowAttentionWithPairBias(nn.Module):
     """
@@ -46,6 +48,7 @@ class MSARowAttentionWithPairBias(nn.Module):
         self.output_linear = nn.Linear(num_heads * c_hidden, c_m)
 
         self.sigmoid = nn.Sigmoid()
+        init_gate_linear(self.linear_gate)
 
     def forward(self, m, z, msa_mask=None):
         """

@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from model.custom_dropout import DropoutColumnwise, DropoutRowwise
 from model.triange_attention import * 
 from model.triangle_multiplication import *
 from model.msa_transitions import *
@@ -49,14 +50,19 @@ class TemplatePairStackBlock(nn.Module):
         self.tri_mul_out = TriangleMultiplicationOutgoing(c_z=c_t, c_hidden=c_hidden_mul)
         self.tri_mul_in = TriangleMultiplicationIncoming(c_z=c_t, c_hidden=c_hidden_mul)
         self.pair_transition = PairTransition(c_z=c_t, expansion=transition_expansion)
-        self.dropout = nn.Dropout(dropout)
+        self.row_dropout = DropoutRowwise(dropout)
+        self.col_dropout = DropoutColumnwise(dropout)
+        zero_init_linear(self.tri_attn_start.output_linear)
+        zero_init_linear(self.tri_attn_end.output_linear)
+        zero_init_linear(self.tri_mul_out.output_linear)
+        zero_init_linear(self.tri_mul_in.output_linear)
 
     def forward(self, t, pair_mask=None):
-        t = t + self.dropout(self.tri_attn_start(t, pair_mask))
-        t = t + self.dropout(self.tri_attn_end(t, pair_mask))
-        t = t + self.dropout(self.tri_mul_out(t, pair_mask))
-        t = t + self.dropout(self.tri_mul_in(t, pair_mask))
-        t = t + self.dropout(self.pair_transition(t, pair_mask))
+        t = t + self.row_dropout(self.tri_attn_start(t, pair_mask))
+        t = t + self.col_dropout(self.tri_attn_end(t, pair_mask))
+        t = t + self.row_dropout(self.tri_mul_out(t, pair_mask))
+        t = t + self.row_dropout(self.tri_mul_in(t, pair_mask))
+        t = t + self.pair_transition(t, pair_mask)
         return t
 
 
@@ -115,6 +121,7 @@ class TemplatePointwiseAttention(nn.Module):
         self.linear_k = nn.Linear(c_t, num_heads * c_hidden, bias=False)
         self.linear_v = nn.Linear(c_t, num_heads * c_hidden, bias=False)
         self.output_linear = nn.Linear(num_heads * c_hidden, c_z)
+        zero_init_linear(self.output_linear)
 
     def forward(self, t, z, template_mask=None):
         B, T, L, _, _ = t.shape

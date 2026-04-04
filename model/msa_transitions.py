@@ -15,6 +15,12 @@ def zero_init_linear(linear: nn.Linear):
         nn.init.zeros_(linear.bias)
 
 
+def init_gate_linear(linear: nn.Linear):
+    nn.init.zeros_(linear.weight)
+    if linear.bias is not None:
+        nn.init.ones_(linear.bias)
+
+
 class MSATransition(nn.Module):
     def __init__(self, c_m=256, expansion=4):
         super().__init__()

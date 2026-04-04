@@ -16,6 +16,7 @@ from model.ipa_transformations import *
 from model.structure_transation import * 
 from model.losses.fape_loss import FAPELoss
 from model.losses.loss_helpers import build_backbone_frames
+from model.msa_transitions import zero_init_linear
 
 
 class StructureModule(nn.Module):
@@ -112,6 +113,9 @@ class StructureModule(nn.Module):
                 nn.init.zeros_(head.weight)
                 nn.init.zeros_(head.bias)
 
+            for ipa in self.ipas:
+                zero_init_linear(ipa.output_linear)
+
         else:
             # Memory-efficient: shared params across all blocks
             self.ipa = InvariantPointAttention(
@@ -128,6 +132,7 @@ class StructureModule(nn.Module):
                 dropout=dropout)
 
             self.backbone_update = BackboneUpdate(c_s=c_s)
+            zero_init_linear(self.ipa.output_linear)
 
     def _compute_aux_backbone_fape(
         self,

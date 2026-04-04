@@ -21,6 +21,7 @@ from model.template_stack import (
     normalize_template_mask)
 
 from model.extra_msa_stack import ExtraMsaStack
+from model.msa_transitions import zero_init_linear
 
 class AlphaFold2(nn.Module):
     """
@@ -240,6 +241,8 @@ class AlphaFold2(nn.Module):
             c_e=extra_msa_c_e,
             num_blocks=extra_msa_num_blocks,
         )
+        zero_init_linear(self.plddt_head.mlp[-1])
+        zero_init_linear(self.distogram_head.linear)
 
         self._freeze_module(self.evoformer, enabled=self.evoformer_enabled)
         self._freeze_module(self.extra_msa_stack, enabled=self.extra_msa_stack_enabled)

@@ -9,6 +9,8 @@ import math
 import torch
 import torch.nn as nn
 
+from model.msa_transitions import init_gate_linear
+
 
 class TriangleAttentionStartingNode(nn.Module):
     """
@@ -49,6 +51,7 @@ class TriangleAttentionStartingNode(nn.Module):
 
         self.output_linear = nn.Linear(num_heads * c_hidden, c_z)
         self.sigmoid = nn.Sigmoid()
+        init_gate_linear(self.linear_gate)
 
     def forward(self, z, pair_mask=None):
         """
@@ -131,6 +134,7 @@ class TriangleAttentionEndingNode(nn.Module):
 
         self.output_linear = nn.Linear(num_heads * c_hidden, c_z)
         self.sigmoid = nn.Sigmoid()
+        init_gate_linear(self.linear_gate)
 
     def forward(self, z, pair_mask=None):
         """

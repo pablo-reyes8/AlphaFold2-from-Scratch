@@ -7,6 +7,7 @@ the global column attention variant used inside those extra MSA blocks.
 
 import torch
 import torch.nn as nn
+from model.custom_dropout import DropoutColumnwise, DropoutRowwise
 from model.msa_row_attention import * 
 from model.triange_attention import * 
 from model.triangle_multiplication import * 
@@ -33,6 +34,8 @@ class MSAColumnGlobalAttention(nn.Module):
         self.linear_v = nn.Linear(c_m, num_heads * c_hidden, bias=False)
         self.linear_g = nn.Linear(c_m, num_heads * c_hidden, bias=True)
         self.output_linear = nn.Linear(num_heads * c_hidden, c_m)
+        init_gate_linear(self.linear_g)
+        zero_init_linear(self.output_linear)
 
     def forward(self, m, msa_mask=None):
         B, S, L, _ = m.shape
@@ -118,20 +121,31 @@ class ExtraMsaBlock(nn.Module):
         self.tri_attn_end = TriangleAttentionEndingNode(c_z=c_z, num_heads=num_heads_pair, c_hidden=c_hidden_pair_att)
         self.pair_transition = PairTransition(c_z=c_z, expansion=transition_expansion)
 
-        self.dropout_msa = nn.Dropout(dropout_msa)
-        self.dropout_pair = nn.Dropout(dropout_pair)
+        self.msa_row_dropout = DropoutRowwise(dropout_msa)
+        self.pair_row_dropout = DropoutRowwise(dropout_pair)
+        self.pair_col_dropout = DropoutColumnwise(dropout_pair)
+        self._zero_init_residual_projections()
+
+    def _zero_init_residual_projections(self):
+        zero_init_linear(self.msa_row_attn.output_linear)
+        zero_init_linear(self.msa_col_global_attn.output_linear)
+        zero_init_linear(self.outer_product_mean.output_linear)
+        zero_init_linear(self.tri_mul_out.output_linear)
+        zero_init_linear(self.tri_mul_in.output_linear)
+        zero_init_linear(self.tri_attn_start.output_linear)
+        zero_init_linear(self.tri_attn_end.output_linear)
 
     def forward(self, e, z, extra_msa_mask=None, pair_mask=None):
-        e = e + self.dropout_msa(self.msa_row_attn(e, z, extra_msa_mask))
-        e = e + self.dropout_msa(self.msa_col_global_attn(e, extra_msa_mask))
-        e = e + self.dropout_msa(self.msa_transition(e, extra_msa_mask))
+        e = e + self.msa_row_dropout(self.msa_row_attn(e, z, extra_msa_mask))
+        e = e + self.msa_col_global_attn(e, extra_msa_mask)
+        e = e + self.msa_transition(e, extra_msa_mask)
 
-        z = z + self.dropout_pair(self.outer_product_mean(e, extra_msa_mask))
-        z = z + self.dropout_pair(self.tri_mul_out(z, pair_mask))
-        z = z + self.dropout_pair(self.tri_mul_in(z, pair_mask))
-        z = z + self.dropout_pair(self.tri_attn_start(z, pair_mask))
-        z = z + self.dropout_pair(self.tri_attn_end(z, pair_mask))
-        z = z + self.dropout_pair(self.pair_transition(z, pair_mask))
+        z = z + self.outer_product_mean(e, extra_msa_mask)
+        z = z + self.pair_row_dropout(self.tri_mul_out(z, pair_mask))
+        z = z + self.pair_row_dropout(self.tri_mul_in(z, pair_mask))
+        z = z + self.pair_row_dropout(self.tri_attn_start(z, pair_mask))
+        z = z + self.pair_col_dropout(self.tri_attn_end(z, pair_mask))
+        z = z + self.pair_transition(z, pair_mask)
         return e, z
 
 

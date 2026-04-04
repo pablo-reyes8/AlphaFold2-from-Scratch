@@ -94,7 +94,9 @@ def test_extra_msa_stack_smoke():
     assert z_out.shape == z.shape
     assert torch.isfinite(m_out).all()
     assert torch.isfinite(z_out).all()
-    assert not torch.allclose(z_out, z)
+    # Canonical AF2 residual blocks are zero-initialized, so the extra MSA
+    # stack starts as an identity on z at initialization.
+    assert torch.allclose(z_out, z)
 
 
 def test_alphafold2_optional_frontend_modules_smoke(toy_model, toy_batch):

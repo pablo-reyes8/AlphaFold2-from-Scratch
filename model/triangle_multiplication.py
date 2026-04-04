@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import math
 
+from model.msa_transitions import init_gate_linear
+
 class TriangleMultiplicationOutgoing(nn.Module):
     """
     AlphaFold2-style Triangle Multiplicative Update (Outgoing).
@@ -40,7 +42,10 @@ class TriangleMultiplicationOutgoing(nn.Module):
         self.output_gate = nn.Linear(c_z, c_z)
 
         self.sigmoid = nn.Sigmoid()
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Identity()
+        init_gate_linear(self.linear_a_g)
+        init_gate_linear(self.linear_b_g)
+        init_gate_linear(self.output_gate)
 
     def forward(self, z, pair_mask=None):
         """
@@ -113,7 +118,10 @@ class TriangleMultiplicationIncoming(nn.Module):
         self.output_gate = nn.Linear(c_z, c_z)
 
         self.sigmoid = nn.Sigmoid()
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Identity()
+        init_gate_linear(self.linear_a_g)
+        init_gate_linear(self.linear_b_g)
+        init_gate_linear(self.output_gate)
 
     def forward(self, z, pair_mask=None):
         """

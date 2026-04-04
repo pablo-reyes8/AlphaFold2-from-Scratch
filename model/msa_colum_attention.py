@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import math
 
+from model.msa_transitions import init_gate_linear
+
 class MSAColumnAttention(nn.Module):
     """
     AlphaFold2-style MSA Column Attention.
@@ -39,6 +41,7 @@ class MSAColumnAttention(nn.Module):
         self.output_linear = nn.Linear(num_heads * c_hidden, c_m)
 
         self.sigmoid = nn.Sigmoid()
+        init_gate_linear(self.linear_gate)
 
     def forward(self, m, msa_mask=None):
         """

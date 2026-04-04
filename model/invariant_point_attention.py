@@ -107,6 +107,7 @@ class InvariantPointAttention(nn.Module):
         )
 
         self.output_linear = nn.Linear(out_dim, c_s)
+        nn.init.constant_(self.point_weights, math.log(math.expm1(1.0)))
 
     def forward(self, s, z, R, t, mask=None):
         B, L, _ = s.shape

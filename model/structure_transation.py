@@ -13,28 +13,29 @@ from model.quaternion_to_matrix import *
 
 class StructureTransition(nn.Module):
     """
-    3-layer MLP for single representation update.
+    Canonical AF2 Structure Module transition:
+    3 linear layers with ReLU and width c_s.
     """
-    def __init__(self, c_s=256, expansion=4, dropout=0.1):
+    def __init__(self, c_s=256, dropout=0.1):
         super().__init__()
-        hidden = expansion * c_s
-
-        self.ln = nn.LayerNorm(c_s)
-        self.lin1 = nn.Linear(c_s, hidden)
-        self.lin2 = nn.Linear(hidden, hidden)
-        self.lin3 = nn.Linear(hidden, c_s)
-        self.act = nn.SiLU()
+        self.lin1 = nn.Linear(c_s, c_s)
+        self.lin2 = nn.Linear(c_s, c_s)
+        self.lin3 = nn.Linear(c_s, c_s)
+        self.act = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
 
         nn.init.zeros_(self.lin3.weight)
         nn.init.zeros_(self.lin3.bias)
 
     def forward(self, s, mask=None):
-        x = self.ln(s)
-        x = self.act(self.lin1(x))
+        x = self.lin1(s)
+        x = self.act(x)
         x = self.dropout(x)
-        x = self.act(self.lin2(x))
+
+        x = self.lin2(x)
+        x = self.act(x)
         x = self.dropout(x)
+
         x = self.lin3(x)
 
         if mask is not None:
@@ -50,7 +51,6 @@ class BackboneUpdate(nn.Module):
     """
     def __init__(self, c_s=256):
         super().__init__()
-        self.ln = nn.LayerNorm(c_s)
         self.linear = nn.Linear(c_s, 6)
 
         nn.init.zeros_(self.linear.weight)
@@ -63,8 +63,7 @@ class BackboneUpdate(nn.Module):
           dR: [B, L, 3, 3]
           dt: [B, L, 3]
         """
-        x = self.ln(s)
-        out = self.linear(x)  # [B, L, 6]
+        out = self.linear(s)
 
         dt = out[..., :3]
         bcd = out[..., 3:]    # [B, L, 3]

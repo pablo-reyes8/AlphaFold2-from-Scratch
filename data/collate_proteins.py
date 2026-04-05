@@ -9,6 +9,8 @@ def collate_proteins(batch):
     batch_size = len(batch)
     max_length = max(item["seq_tokens"].shape[0] for item in batch)
     max_msa_depth = max(item["msa_tokens"].shape[0] for item in batch)
+    max_extra_msa_depth = max(item["extra_msa_feat"].shape[0] for item in batch)
+    max_templates = max(item["template_mask"].shape[0] for item in batch)
 
     pad_token = AA_VOCAB["-"]
 
@@ -17,6 +19,32 @@ def collate_proteins(batch):
 
     msa_tokens = torch.full((batch_size, max_msa_depth, max_length), pad_token, dtype=torch.long)
     msa_mask = torch.zeros((batch_size, max_msa_depth, max_length), dtype=torch.float32)
+
+    extra_msa_feat = None
+    extra_msa_mask = None
+    if max_extra_msa_depth > 0:
+        extra_msa_dim = batch[0]["extra_msa_feat"].shape[-1]
+        extra_msa_feat = torch.zeros(
+            (batch_size, max_extra_msa_depth, max_length, extra_msa_dim),
+            dtype=torch.float32,
+        )
+        extra_msa_mask = torch.zeros((batch_size, max_extra_msa_depth, max_length), dtype=torch.float32)
+
+    template_angle_feat = None
+    template_pair_feat = None
+    template_mask = None
+    if max_templates > 0:
+        template_angle_dim = batch[0]["template_angle_feat"].shape[-1]
+        template_pair_dim = batch[0]["template_pair_feat"].shape[-1]
+        template_angle_feat = torch.zeros(
+            (batch_size, max_templates, max_length, template_angle_dim),
+            dtype=torch.float32,
+        )
+        template_pair_feat = torch.zeros(
+            (batch_size, max_templates, max_length, max_length, template_pair_dim),
+            dtype=torch.float32,
+        )
+        template_mask = torch.zeros((batch_size, max_templates, max_length), dtype=torch.float32)
 
     coords_n = torch.zeros((batch_size, max_length, 3), dtype=torch.float32)
     coords_ca = torch.zeros((batch_size, max_length, 3), dtype=torch.float32)
@@ -35,18 +63,34 @@ def collate_proteins(batch):
     ids = []
     msa_chain_ids = []
     matched_chain_ids = []
+    template_chain_ids = []
     sequence_strs = []
     match_identity = torch.zeros(batch_size, dtype=torch.float32)
 
     for index, item in enumerate(batch):
         length = item["seq_tokens"].shape[0]
         msa_depth = item["msa_tokens"].shape[0]
+        extra_depth = item["extra_msa_feat"].shape[0]
+        template_count = item["template_mask"].shape[0]
 
         seq_tokens[index, :length] = item["seq_tokens"]
         seq_mask[index, :length] = 1.0
 
         msa_tokens[index, :msa_depth, :length] = item["msa_tokens"]
         msa_mask[index, :msa_depth, :length] = item["msa_mask"]
+
+        if extra_msa_feat is not None and extra_depth > 0:
+            extra_msa_feat[index, :extra_depth, :length] = item["extra_msa_feat"][:, :length]
+            extra_msa_mask[index, :extra_depth, :length] = item["extra_msa_mask"][:, :length]
+
+        if template_mask is not None and template_count > 0:
+            template_angle_feat[index, :template_count, :length] = item["template_angle_feat"][:, :length]
+            template_pair_feat[index, :template_count, :length, :length] = item["template_pair_feat"][
+                :,
+                :length,
+                :length,
+            ]
+            template_mask[index, :template_count, :length] = item["template_mask"][:, :length]
 
         coords_n[index, :length] = item["coords_n"]
         coords_ca[index, :length] = item["coords_ca"]
@@ -69,6 +113,7 @@ def collate_proteins(batch):
         ids.append(item["id"])
         msa_chain_ids.append(item["msa_chain_id"])
         matched_chain_ids.append(item["matched_chain_id"])
+        template_chain_ids.append(item.get("template_chain_ids", []))
         sequence_strs.append(item["sequence_str"])
         match_identity[index] = item["match_identity"]
 
@@ -76,12 +121,18 @@ def collate_proteins(batch):
         "id": ids,
         "msa_chain_id": msa_chain_ids,
         "matched_chain_id": matched_chain_ids,
+        "template_chain_ids": template_chain_ids,
         "match_identity": match_identity,
         "sequence_str": sequence_strs,
         "seq_tokens": seq_tokens,
         "seq_mask": seq_mask,
         "msa_tokens": msa_tokens,
         "msa_mask": msa_mask,
+        "extra_msa_feat": extra_msa_feat,
+        "extra_msa_mask": extra_msa_mask,
+        "template_angle_feat": template_angle_feat,
+        "template_pair_feat": template_pair_feat,
+        "template_mask": template_mask,
         "coords_n": coords_n,
         "coords_ca": coords_ca,
         "coords_c": coords_c,

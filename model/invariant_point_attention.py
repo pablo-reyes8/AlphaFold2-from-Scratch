@@ -79,9 +79,6 @@ class InvariantPointAttention(nn.Module):
         self.num_qk_points = num_qk_points
         self.num_v_points = num_v_points
 
-        self.layer_norm_s = nn.LayerNorm(c_s)
-        self.layer_norm_z = nn.LayerNorm(c_z)
-
         # scalar qkv
         self.linear_q = nn.Linear(c_s, num_heads * c_hidden, bias=False)
         self.linear_k = nn.Linear(c_s, num_heads * c_hidden, bias=False)
@@ -115,9 +112,6 @@ class InvariantPointAttention(nn.Module):
         C = self.c_hidden
         Pqk = self.num_qk_points
         Pv = self.num_v_points
-
-        s = self.layer_norm_s(s)
-        z = self.layer_norm_z(z)
 
         # scalar q, k, v
         q = self.linear_q(s).view(B, L, H, C)

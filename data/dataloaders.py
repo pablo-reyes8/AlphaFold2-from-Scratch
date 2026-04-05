@@ -44,6 +44,39 @@ AA_VOCAB = {
 }
 
 UNK_TOKEN = AA_VOCAB["X"]
+GAP_TOKEN = AA_VOCAB["-"]
+
+FEATURE_AA_STATES = (
+    "A",
+    "R",
+    "N",
+    "D",
+    "C",
+    "Q",
+    "E",
+    "G",
+    "H",
+    "I",
+    "L",
+    "K",
+    "M",
+    "F",
+    "P",
+    "S",
+    "T",
+    "W",
+    "Y",
+    "V",
+    "X",
+    "-",
+    "*",
+)
+FEATURE_AA_TO_INDEX = {token: index for index, token in enumerate(FEATURE_AA_STATES)}
+EXTRA_MSA_FEATURE_DIM = 25
+TEMPLATE_ANGLE_FEATURE_DIM = 51
+TEMPLATE_PAIR_FEATURE_DIM = 88
+TEMPLATE_PAIR_DIST_BINS = 64
+TEMPLATE_REL_POS_CLIP = 10
 
 
 def tokenize_sequence(seq: str) -> torch.Tensor:
@@ -118,6 +151,483 @@ def select_msa_sequences(
 
 def tokenize_msa(msa_seqs: list[str]) -> torch.Tensor:
     return torch.stack([tokenize_sequence(sequence) for sequence in msa_seqs], dim=0)
+
+
+def canonical_feature_token(character: str) -> str:
+    token = character.upper()
+    if token in FEATURE_AA_TO_INDEX:
+        return token
+    if token in {".", "-"}:
+        return "-"
+    return "X"
+
+
+def _sequence_to_feature_one_hot(sequence: str) -> np.ndarray:
+    one_hot = np.zeros((len(sequence), len(FEATURE_AA_STATES)), dtype=np.float32)
+    for index, character in enumerate(sequence):
+        one_hot[index, FEATURE_AA_TO_INDEX[canonical_feature_token(character)]] = 1.0
+    return one_hot
+
+
+def _finalize_a3m_sequence(raw_sequence: str) -> tuple[str, np.ndarray]:
+    aligned: list[str] = []
+    deletion_counts: list[float] = []
+    pending_deletions = 0
+
+    for character in raw_sequence:
+        if character.islower():
+            pending_deletions += 1
+            continue
+
+        aligned.append(character.upper())
+        deletion_counts.append(float(pending_deletions))
+        pending_deletions = 0
+
+    return "".join(aligned), np.asarray(deletion_counts, dtype=np.float32)
+
+
+def read_a3m_records(
+    a3m_path: str | Path,
+    max_msa_seqs: int | None = None,
+) -> list[tuple[str, np.ndarray]]:
+    records: list[tuple[str, np.ndarray]] = []
+    current_name: str | None = None
+    current_sequence: list[str] = []
+
+    with Path(a3m_path).expanduser().open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            if line.startswith(">"):
+                if current_name is not None:
+                    records.append(_finalize_a3m_sequence("".join(current_sequence)))
+                    if max_msa_seqs is not None and len(records) >= max_msa_seqs:
+                        break
+
+                current_name = line[1:]
+                current_sequence = []
+                continue
+
+            current_sequence.append(line)
+
+    if (max_msa_seqs is None or len(records) < max_msa_seqs) and current_name is not None:
+        records.append(_finalize_a3m_sequence("".join(current_sequence)))
+
+    return records
+
+
+def read_stockholm_records(
+    stockholm_path: str | Path,
+    max_msa_seqs: int | None = None,
+) -> list[tuple[str, np.ndarray]]:
+    chunks: dict[str, list[str]] = {}
+    order: list[str] = []
+
+    with Path(stockholm_path).expanduser().open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or line == "//":
+                continue
+
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+
+            name, sequence_chunk = parts[0], parts[1]
+            if name not in chunks:
+                chunks[name] = []
+                order.append(name)
+            chunks[name].append(sequence_chunk)
+
+    records: list[tuple[str, np.ndarray]] = []
+    for name in order:
+        sequence = "".join(chunks[name]).replace(".", "-").upper()
+        deletion_counts = np.zeros(len(sequence), dtype=np.float32)
+        records.append((sequence, deletion_counts))
+        if max_msa_seqs is not None and len(records) >= max_msa_seqs:
+            break
+
+    return records
+
+
+def _normalize_alignment_record(
+    sequence: str,
+    deletion_counts: np.ndarray,
+    target_len: int,
+) -> tuple[str, np.ndarray]:
+    normalized = [canonical_feature_token(character) for character in sequence[:target_len]]
+    deletion = np.asarray(deletion_counts[:target_len], dtype=np.float32)
+
+    if len(normalized) < target_len:
+        normalized.extend("-" for _ in range(target_len - len(normalized)))
+
+    if deletion.shape[0] < target_len:
+        deletion = np.pad(deletion, (0, target_len - deletion.shape[0]))
+
+    return "".join(normalized), deletion
+
+
+def _deletion_value_transform(deletion_counts: np.ndarray) -> np.ndarray:
+    return np.arctan(deletion_counts / 3.0) * (2.0 / np.pi)
+
+
+def build_extra_msa_records(
+    *,
+    msa_dir: str | Path,
+    target_sequence: str,
+    main_msa_seqs: list[str],
+    max_extra_msa_seqs: int,
+) -> list[tuple[str, np.ndarray]]:
+    if max_extra_msa_seqs <= 0:
+        return []
+
+    msa_dir = Path(msa_dir).expanduser()
+    target_len = len(target_sequence)
+    seen_sequences = {
+        _normalize_alignment_record(sequence, np.zeros(len(sequence), dtype=np.float32), target_len)[0]
+        for sequence in main_msa_seqs
+    }
+    seen_sequences.add(
+        _normalize_alignment_record(
+            target_sequence,
+            np.zeros(len(target_sequence), dtype=np.float32),
+            target_len,
+        )[0]
+    )
+
+    records: list[tuple[str, np.ndarray]] = []
+
+    def append_records(source_records: list[tuple[str, np.ndarray]]) -> None:
+        for sequence, deletion_counts in source_records:
+            normalized_sequence, normalized_deletions = _normalize_alignment_record(
+                sequence,
+                deletion_counts,
+                target_len,
+            )
+            if not normalized_sequence or set(normalized_sequence) == {"-"}:
+                continue
+            if normalized_sequence in seen_sequences:
+                continue
+            seen_sequences.add(normalized_sequence)
+            records.append((normalized_sequence, normalized_deletions))
+            if len(records) >= max_extra_msa_seqs:
+                return
+
+    cfdb_path = msa_dir / "cfdb_hits.a3m"
+    if cfdb_path.exists():
+        cfdb_records = read_a3m_records(cfdb_path)
+        append_records(cfdb_records[len(main_msa_seqs) :])
+
+    for stockholm_name in ("mgnify_hits.sto", "uniprot_hits.sto", "uniref90_hits.sto"):
+        if len(records) >= max_extra_msa_seqs:
+            break
+        stockholm_path = msa_dir / stockholm_name
+        if not stockholm_path.exists():
+            continue
+        append_records(read_stockholm_records(stockholm_path))
+
+    return records[:max_extra_msa_seqs]
+
+
+def build_extra_msa_features(
+    records: list[tuple[str, np.ndarray]],
+    *,
+    target_len: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    num_records = len(records)
+    features = np.zeros((num_records, target_len, EXTRA_MSA_FEATURE_DIM), dtype=np.float32)
+    mask = np.zeros((num_records, target_len), dtype=np.float32)
+
+    for record_index, (sequence, deletion_counts) in enumerate(records):
+        features[record_index, :, : len(FEATURE_AA_STATES)] = _sequence_to_feature_one_hot(sequence)
+        features[record_index, :, 23] = (deletion_counts > 0).astype(np.float32)
+        features[record_index, :, 24] = _deletion_value_transform(deletion_counts)
+        mask[record_index] = np.asarray(
+            [0.0 if canonical_feature_token(character) == "-" else 1.0 for character in sequence],
+            dtype=np.float32,
+        )
+
+    return (
+        torch.tensor(features, dtype=torch.float32),
+        torch.tensor(mask, dtype=torch.float32),
+    )
+
+
+def parse_same_structure_template_chain_ids(
+    hmm_output_path: str | Path,
+    *,
+    query_name: str,
+) -> list[str]:
+    path = Path(hmm_output_path).expanduser()
+    if not path.exists():
+        return []
+
+    prefix = f"{query_name.lower()}_"
+    chain_ids: list[str] = []
+    seen: set[str] = set()
+
+    with path.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            if not raw_line.startswith("#=GS "):
+                continue
+
+            token = raw_line.split()[1].split("/")[0]
+            token_lower = token.lower()
+            if not token_lower.startswith(prefix):
+                continue
+
+            parts = token.split("_", maxsplit=1)
+            if len(parts) != 2:
+                continue
+
+            chain_id = parts[1]
+            if chain_id in seen:
+                continue
+
+            seen.add(chain_id)
+            chain_ids.append(chain_id)
+
+    return chain_ids
+
+
+def build_alignment_mapping(target_sequence: str, template_sequence: str) -> np.ndarray:
+    align_module, _, _ = _require_biopython()
+    aligner = align_module.PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 2.0
+    aligner.mismatch_score = -1.0
+    aligner.open_gap_score = -1.0
+    aligner.extend_gap_score = -0.1
+
+    alignment = aligner.align(target_sequence, template_sequence)[0]
+    mapping = np.full(len(target_sequence), -1, dtype=np.int64)
+
+    for target_span, template_span in zip(alignment.aligned[0], alignment.aligned[1]):
+        target_start, target_end = target_span
+        template_start, template_end = template_span
+        span_length = min(target_end - target_start, template_end - template_start)
+        mapping[target_start : target_start + span_length] = np.arange(
+            template_start,
+            template_start + span_length,
+            dtype=np.int64,
+        )
+
+    return mapping
+
+
+def _safe_normalize(vector: np.ndarray, eps: float = 1e-8) -> np.ndarray:
+    norm = np.linalg.norm(vector)
+    if norm < eps:
+        return np.zeros_like(vector)
+    return vector / norm
+
+
+def _compute_backbone_local_geometry(
+    n_coord: np.ndarray,
+    ca_coord: np.ndarray,
+    c_coord: np.ndarray,
+    eps: float = 1e-8,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ex = _safe_normalize(c_coord - ca_coord, eps=eps)
+    n_vec = n_coord - ca_coord
+    n_proj = n_vec - np.dot(n_vec, ex) * ex
+    ey = _safe_normalize(n_proj, eps=eps)
+    ez = _safe_normalize(np.cross(ex, ey), eps=eps)
+    rotation = np.stack([ex, ey, ez], axis=-1)
+
+    n_local = (n_coord - ca_coord) @ rotation
+    c_local = (c_coord - ca_coord) @ rotation
+    return n_local, c_local, _safe_normalize(n_local, eps=eps), _safe_normalize(c_local, eps=eps)
+
+
+def build_template_pair_features(
+    coords_ca: np.ndarray,
+    residue_mask: np.ndarray,
+) -> np.ndarray:
+    length = coords_ca.shape[0]
+    pair_mask = residue_mask[:, None] * residue_mask[None, :]
+    diffs = coords_ca[:, None, :] - coords_ca[None, :, :]
+    distances = np.sqrt(np.sum(diffs**2, axis=-1) + 1e-8)
+
+    dist_edges = np.linspace(2.0, 22.0, TEMPLATE_PAIR_DIST_BINS - 1, dtype=np.float32)
+    dist_bins = np.digitize(distances, dist_edges, right=False)
+    dist_one_hot = np.eye(TEMPLATE_PAIR_DIST_BINS, dtype=np.float32)[dist_bins]
+    dist_one_hot *= pair_mask[..., None]
+
+    residue_indices = np.arange(length, dtype=np.int64)
+    relpos = residue_indices[:, None] - residue_indices[None, :]
+    relpos = np.clip(relpos, -TEMPLATE_REL_POS_CLIP, TEMPLATE_REL_POS_CLIP) + TEMPLATE_REL_POS_CLIP
+    relpos_one_hot = np.eye(2 * TEMPLATE_REL_POS_CLIP + 1, dtype=np.float32)[relpos]
+    relpos_one_hot *= pair_mask[..., None]
+
+    pair_mask_feat = pair_mask[..., None].astype(np.float32)
+    inverse_distance = np.where(pair_mask > 0, 1.0 / (1.0 + distances), 0.0)[..., None].astype(np.float32)
+    same_chain_feat = pair_mask[..., None].astype(np.float32)
+
+    return np.concatenate(
+        [dist_one_hot, relpos_one_hot, pair_mask_feat, inverse_distance, same_chain_feat],
+        axis=-1,
+    )
+
+
+def build_template_features_from_chain(
+    *,
+    target_sequence: str,
+    template_sequence: str,
+    coords_n: np.ndarray,
+    coords_ca: np.ndarray,
+    coords_c: np.ndarray,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    target_len = len(target_sequence)
+    mapping = build_alignment_mapping(target_sequence, template_sequence)
+
+    aligned_sequence = ["-"] * target_len
+    aligned_coords_n = np.zeros((target_len, 3), dtype=np.float32)
+    aligned_coords_ca = np.zeros((target_len, 3), dtype=np.float32)
+    aligned_coords_c = np.zeros((target_len, 3), dtype=np.float32)
+
+    source_valid_n = ~np.isnan(coords_n).any(axis=1)
+    source_valid_ca = ~np.isnan(coords_ca).any(axis=1)
+    source_valid_c = ~np.isnan(coords_c).any(axis=1)
+
+    aligned_valid_n = np.zeros(target_len, dtype=np.float32)
+    aligned_valid_ca = np.zeros(target_len, dtype=np.float32)
+    aligned_valid_c = np.zeros(target_len, dtype=np.float32)
+
+    for target_index, template_index in enumerate(mapping):
+        if template_index < 0 or template_index >= len(template_sequence):
+            continue
+
+        aligned_sequence[target_index] = template_sequence[template_index]
+        aligned_coords_n[target_index] = np.nan_to_num(coords_n[template_index], nan=0.0)
+        aligned_coords_ca[target_index] = np.nan_to_num(coords_ca[template_index], nan=0.0)
+        aligned_coords_c[target_index] = np.nan_to_num(coords_c[template_index], nan=0.0)
+        aligned_valid_n[target_index] = float(source_valid_n[template_index])
+        aligned_valid_ca[target_index] = float(source_valid_ca[template_index])
+        aligned_valid_c[target_index] = float(source_valid_c[template_index])
+
+    aligned_valid_backbone = (aligned_valid_n * aligned_valid_ca * aligned_valid_c).astype(np.float32)
+    torsion_true, torsion_mask = backbone_torsions_from_coords(
+        coords_n=aligned_coords_n,
+        coords_ca=aligned_coords_ca,
+        coords_c=aligned_coords_c,
+        valid_backbone_mask=aligned_valid_backbone.astype(bool),
+    )
+
+    angle_feat = np.zeros((target_len, TEMPLATE_ANGLE_FEATURE_DIM), dtype=np.float32)
+    angle_feat[:, : len(FEATURE_AA_STATES)] = _sequence_to_feature_one_hot("".join(aligned_sequence))
+    angle_feat[:, 23:29] = torsion_true.reshape(target_len, 6).numpy()
+    angle_feat[:, 29:32] = torsion_mask.numpy()
+    angle_feat[:, 41] = aligned_valid_n
+    angle_feat[:, 42] = aligned_valid_ca
+    angle_feat[:, 43] = aligned_valid_c
+    angle_feat[:, 44] = aligned_valid_backbone
+
+    for residue_index in range(target_len):
+        if aligned_valid_backbone[residue_index] == 0:
+            continue
+
+        n_local, c_local, n_unit, c_unit = _compute_backbone_local_geometry(
+            aligned_coords_n[residue_index],
+            aligned_coords_ca[residue_index],
+            aligned_coords_c[residue_index],
+        )
+        angle_feat[residue_index, 32:41] = np.concatenate(
+            [n_local, np.zeros(3, dtype=np.float32), c_local]
+        )
+        angle_feat[residue_index, 45:51] = np.concatenate([n_unit, c_unit])
+
+    pair_feat = build_template_pair_features(aligned_coords_ca, aligned_valid_backbone)
+    template_mask = aligned_valid_backbone
+
+    return (
+        torch.tensor(angle_feat, dtype=torch.float32),
+        torch.tensor(pair_feat, dtype=torch.float32),
+        torch.tensor(template_mask, dtype=torch.float32),
+    )
+
+
+def build_template_feature_tensors(
+    *,
+    query_name: str,
+    msa_dir: str | Path,
+    chain_data: dict[str, dict[str, Any]],
+    matched_chain_id: str,
+    target_sequence: str,
+    max_templates: int,
+    min_template_identity: float,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[str]]:
+    target_len = len(target_sequence)
+    if max_templates <= 0:
+        empty_angle = torch.zeros((0, target_len, TEMPLATE_ANGLE_FEATURE_DIM), dtype=torch.float32)
+        empty_pair = torch.zeros((0, target_len, target_len, TEMPLATE_PAIR_FEATURE_DIM), dtype=torch.float32)
+        empty_mask = torch.zeros((0, target_len), dtype=torch.float32)
+        return empty_angle, empty_pair, empty_mask, []
+
+    hmm_output_path = Path(msa_dir).expanduser() / "hmm_output.sto"
+    preferred_chain_ids = parse_same_structure_template_chain_ids(
+        hmm_output_path,
+        query_name=query_name,
+    )
+    if not preferred_chain_ids:
+        preferred_chain_ids = list(chain_data.keys())
+
+    scored_candidates: list[tuple[float, str]] = []
+    seen: set[str] = set()
+    for chain_id in preferred_chain_ids:
+        if chain_id in seen or chain_id == matched_chain_id or chain_id not in chain_data:
+            continue
+        seen.add(chain_id)
+
+        candidate_sequence = chain_data[chain_id]["sequence"]
+        if not candidate_sequence:
+            continue
+
+        identity = sequence_identity(target_sequence, candidate_sequence)
+        if identity < min_template_identity:
+            continue
+
+        scored_candidates.append((identity, chain_id))
+
+    scored_candidates.sort(key=lambda item: (-item[0], item[1]))
+
+    template_angle_feats: list[torch.Tensor] = []
+    template_pair_feats: list[torch.Tensor] = []
+    template_masks: list[torch.Tensor] = []
+    template_chain_ids: list[str] = []
+
+    for _, chain_id in scored_candidates[:max_templates]:
+        chain_info = chain_data[chain_id]
+        angle_feat, pair_feat, template_mask = build_template_features_from_chain(
+            target_sequence=target_sequence,
+            template_sequence=chain_info["sequence"],
+            coords_n=chain_info["coords_n"],
+            coords_ca=chain_info["coords_ca"],
+            coords_c=chain_info["coords_c"],
+        )
+
+        if float(template_mask.sum().item()) <= 0.0:
+            continue
+
+        template_angle_feats.append(angle_feat)
+        template_pair_feats.append(pair_feat)
+        template_masks.append(template_mask)
+        template_chain_ids.append(chain_id)
+
+    if not template_angle_feats:
+        empty_angle = torch.zeros((0, target_len, TEMPLATE_ANGLE_FEATURE_DIM), dtype=torch.float32)
+        empty_pair = torch.zeros((0, target_len, target_len, TEMPLATE_PAIR_FEATURE_DIM), dtype=torch.float32)
+        empty_mask = torch.zeros((0, target_len), dtype=torch.float32)
+        return empty_angle, empty_pair, empty_mask, []
+
+    return (
+        torch.stack(template_angle_feats, dim=0),
+        torch.stack(template_pair_feats, dim=0),
+        torch.stack(template_masks, dim=0),
+        template_chain_ids,
+    )
 
 
 def _require_biopython():
@@ -334,6 +844,9 @@ class FoldbenchProteinDataset(Dataset):
         max_samples: int | None = None,
         min_identity: float = 0.90,
         single_sequence_mode: bool = False,
+        max_extra_msa_seqs: int = 256,
+        max_templates: int = 4,
+        min_template_identity: float = 0.80,
         verbose: bool = True,
     ):
         self.json_path = Path(json_path).expanduser() if json_path is not None else None
@@ -341,8 +854,11 @@ class FoldbenchProteinDataset(Dataset):
         self.cif_root = Path(cif_root).expanduser() if cif_root is not None else None
         self.manifest_csv = Path(manifest_csv).expanduser() if manifest_csv is not None else None
         self.max_msa_seqs = max_msa_seqs
+        self.max_extra_msa_seqs = max(0, int(max_extra_msa_seqs))
+        self.max_templates = max(0, int(max_templates))
         self.use_a3m_name = use_a3m_name
         self.min_identity = min_identity
+        self.min_template_identity = float(min_template_identity)
         self.single_sequence_mode = bool(single_sequence_mode)
 
         self.manifest_df = self._load_manifest()
@@ -501,12 +1017,36 @@ class FoldbenchProteinDataset(Dataset):
 
         valid_res_mask_np = valid_res_mask_np[:length]
         valid_backbone_mask_np = valid_backbone_mask_np[:length]
+        cropped_target_sequence = target_sequence[:length]
 
         torsion_true, torsion_mask = backbone_torsions_from_coords(
             coords_n=coords_n_np,
             coords_ca=coords_ca_np,
             coords_c=coords_c_np,
             valid_backbone_mask=valid_backbone_mask_np.astype(bool),
+        )
+
+        extra_msa_records = build_extra_msa_records(
+            msa_dir=msa_file.parent,
+            target_sequence=cropped_target_sequence,
+            main_msa_seqs=[sequence[:length] for sequence in msa_seqs],
+            max_extra_msa_seqs=self.max_extra_msa_seqs,
+        )
+        extra_msa_feat, extra_msa_mask = build_extra_msa_features(
+            extra_msa_records,
+            target_len=length,
+        )
+
+        template_angle_feat, template_pair_feat, template_mask, template_chain_ids = (
+            build_template_feature_tensors(
+                query_name=query_name,
+                msa_dir=msa_file.parent,
+                chain_data=chain_data,
+                matched_chain_id=matched_chain_id,
+                target_sequence=cropped_target_sequence,
+                max_templates=self.max_templates,
+                min_template_identity=self.min_template_identity,
+            )
         )
 
         coords_n = torch.tensor(coords_n_np, dtype=torch.float32)
@@ -521,11 +1061,17 @@ class FoldbenchProteinDataset(Dataset):
             "id": query_name,
             "msa_chain_id": row["msa_chain_id"],
             "matched_chain_id": matched_chain_id,
+            "template_chain_ids": template_chain_ids,
             "match_identity": torch.tensor(row["match_identity"], dtype=torch.float32),
-            "sequence_str": target_sequence[:length],
+            "sequence_str": cropped_target_sequence,
             "seq_tokens": seq_tokens,
             "msa_tokens": msa_tokens,
             "msa_mask": msa_mask,
+            "extra_msa_feat": extra_msa_feat,
+            "extra_msa_mask": extra_msa_mask,
+            "template_angle_feat": template_angle_feat,
+            "template_pair_feat": template_pair_feat,
+            "template_mask": template_mask,
             "coords_n": coords_n,
             "coords_ca": coords_ca,
             "coords_c": coords_c,

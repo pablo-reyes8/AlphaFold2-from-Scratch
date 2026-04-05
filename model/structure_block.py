@@ -21,42 +21,37 @@ from model.msa_transitions import zero_init_linear
 
 class StructureModule(nn.Module):
     """
-    AF2-style structure module with optional block-specific parameters.
+    AlphaFold2-style Structure Module.
 
-    Modes
-    -----
+    Canonical AF2 behavior:
+    - 8 blocks with shared weights
+    - LayerNorm(s_initial), LayerNorm(z)
+    - initial linear projection of s_initial
+    - post-residual LayerNorm after IPA
+    - post-residual LayerNorm after Transition
+    - BackboneUpdate after transition
+
     use_block_specific_params = False  (default)
-        Reuses the same IPA / Transition / BackboneUpdate across all blocks.
-        More memory efficient.
+        Reuses the same IPA / Transition / BackboneUpdate across all 8 blocks.
+        This matches the shared-weights design in AlphaFold2 Algorithm 20.
 
     use_block_specific_params = True
         Uses separate parameters per block via ModuleList.
-        More canonical AF2-style.
-
-    Notes
-    -----
-    - Rotation update always comes from BackboneUpdate.
-    - Translation update can optionally come from separate linear heads
-      when use_block_specific_params=True.
-    - When enabled, intermediate backbone frames accumulate a backbone-only
-      auxiliary FAPE term and stop gradients through orientations between
-      blocks, matching the canonical AF2 training trick as closely as possible
-      without moving the torsion head into this module.
+        This is a non-canonical variant kept only for experimentation.
     """
 
     def __init__(
         self,
         c_s=256,
         c_z=128,
-        num_blocks=8,
-        ipa_heads=8,
-        ipa_scalar_dim=32,
-        ipa_qk_points=4,
-        ipa_v_points=8,
-        transition_expansion=4,
+        num_blocks=8,            # AF2 canonical: 8
+        ipa_heads=8,             # AF2 canonical: 12
+        ipa_scalar_dim=32,       # AF2 canonical: 16
+        ipa_qk_points=4,         # AF2 canonical: 4
+        ipa_v_points=8,          # AF2 canonical: 8
         dropout=0.1,
         trans_scale_factor=10.0,
-        use_block_specific_params=False,
+        use_block_specific_params=False, # Canonical 
         stop_rotation_gradients=True,
         aux_fape_enabled=True,
         aux_fape_length_scale=10.0,
@@ -70,17 +65,29 @@ class StructureModule(nn.Module):
         self.use_block_specific_params = use_block_specific_params
         self.stop_rotation_gradients = bool(stop_rotation_gradients)
         self.aux_fape_enabled = bool(aux_fape_enabled)
+
         self.dropout = nn.Dropout(dropout)
+
         self.aux_fape_loss = FAPELoss(
             length_scale=aux_fape_length_scale,
             clamp_distance=aux_fape_clamp_distance,
             eps=aux_fape_eps,
         )
+
         self.last_aux_loss = None
         self.last_aux_per_block = None
 
+        # Canonical Structure Module input preprocessing
+        self.input_layer_norm_s = nn.LayerNorm(c_s)
+        self.input_layer_norm_z = nn.LayerNorm(c_z)
+        self.single_init_proj = nn.Linear(c_s, c_s)
+
+        # Canonical post-residual normalizations
+        self.post_ipa_layer_norm = nn.LayerNorm(c_s)
+        self.post_transition_layer_norm = nn.LayerNorm(c_s)
+
         if self.use_block_specific_params:
-            # More canonical: separate params per block
+            # Non-canonical experimental variant
             self.ipas = nn.ModuleList([
                 InvariantPointAttention(
                     c_s=c_s,
@@ -90,24 +97,26 @@ class StructureModule(nn.Module):
                     num_qk_points=ipa_qk_points,
                     num_v_points=ipa_v_points,
                 )
-                for _ in range(num_blocks)])
+                for _ in range(num_blocks)
+            ])
 
             self.transitions = nn.ModuleList([
                 StructureTransition(
                     c_s=c_s,
-                    expansion=transition_expansion,
                     dropout=dropout,
                 )
-                for _ in range(num_blocks)])
+                for _ in range(num_blocks)
+            ])
 
             self.backbone_updates = nn.ModuleList([
                 BackboneUpdate(c_s=c_s)
-                for _ in range(num_blocks)])
+                for _ in range(num_blocks)
+            ])
 
-            # Separate translation heads per block
             self.translation_heads = nn.ModuleList([
                 nn.Linear(c_s, 3)
-                for _ in range(num_blocks)])
+                for _ in range(num_blocks)
+            ])
 
             for head in self.translation_heads:
                 nn.init.zeros_(head.weight)
@@ -117,7 +126,7 @@ class StructureModule(nn.Module):
                 zero_init_linear(ipa.output_linear)
 
         else:
-            # Memory-efficient: shared params across all blocks
+            # Canonical AF2-style shared-weights path
             self.ipa = InvariantPointAttention(
                 c_s=c_s,
                 c_z=c_z,
@@ -128,10 +137,10 @@ class StructureModule(nn.Module):
 
             self.transition = StructureTransition(
                 c_s=c_s,
-                expansion=transition_expansion,
                 dropout=dropout)
 
             self.backbone_update = BackboneUpdate(c_s=c_s)
+
             zero_init_linear(self.ipa.output_linear)
 
     def _compute_aux_backbone_fape(
@@ -142,8 +151,8 @@ class StructureModule(nn.Module):
         R_true: torch.Tensor,
         t_true: torch.Tensor,
         coords_ca: torch.Tensor,
-        mask: torch.Tensor | None,
-    ) -> torch.Tensor:
+        mask: torch.Tensor | None) -> torch.Tensor:
+
         return self.aux_fape_loss(
             R_pred=R.float(),
             t_pred=t.float(),
@@ -151,8 +160,7 @@ class StructureModule(nn.Module):
             R_true=R_true.float(),
             t_true=t_true.float(),
             x_true=coords_ca.float(),
-            mask=(mask.float() if mask is not None else None),
-        )
+            mask=(mask.float() if mask is not None else None))
 
     def forward(
         self,
@@ -165,23 +173,22 @@ class StructureModule(nn.Module):
         coords_c: torch.Tensor | None = None,
         backbone_mask: torch.Tensor | None = None,
         return_aux: bool = False,
-        return_intermediates: bool = False,
-    ):
+        return_intermediates: bool = False):
         """
-        s: [B, L, c_s]
-        z: [B, L, L, c_z]
-        mask: [B, L]
+        Args
+        ----
+        s : [B, L, c_s]
+        z : [B, L, L, c_z]
+        mask : [B, L]
 
-        Optional backbone targets allow this module to accumulate the
-        AlphaFold-style intermediate auxiliary loss on backbone frames.
+        Optional backbone targets allow accumulation of an intermediate
+        auxiliary backbone FAPE loss.
 
-        returns:
-          s: [B, L, c_s]
-          R: [B, L, 3, 3]
-          t: [B, L, 3]
-          aux_loss: scalar, only when return_aux=True
-          intermediates: dict of stacked per-block tensors, only when
-            return_intermediates=True
+        Returns
+        -------
+        s : [B, L, c_s]
+        R : [B, L, 3, 3]
+        t : [B, L, 3]
         """
         B, L, _ = s.shape
         device, dtype = s.device, s.dtype
@@ -193,6 +200,7 @@ class StructureModule(nn.Module):
             and coords_ca is not None
             and coords_c is not None
         )
+
         R_true = None
         t_true = None
         if can_compute_aux:
@@ -203,8 +211,15 @@ class StructureModule(nn.Module):
                 mask=aux_mask,
             )
 
+        # Canonical input preprocessing
+        s_initial = self.input_layer_norm_s(s)
+        z = self.input_layer_norm_z(z)
+        s = self.single_init_proj(s_initial)
+
+        # Identity initial frames
         R = torch.eye(3, device=device, dtype=dtype).view(1, 1, 3, 3).repeat(B, L, 1, 1)
         t = torch.zeros(B, L, 3, device=device, dtype=dtype)
+
         aux_losses = []
         s_intermediates = []
         R_intermediates = []
@@ -212,23 +227,29 @@ class StructureModule(nn.Module):
 
         for i in range(self.num_blocks):
             if self.use_block_specific_params:
-                s = s + self.dropout(self.ipas[i](s, z, R, t, mask)[0])
-                s = s + self.dropout(self.transitions[i](s, mask))
+                ipa_update, _ = self.ipas[i](s, z, R, t, mask)
+                s = s + self.dropout(ipa_update)
+                s = self.post_ipa_layer_norm(s)
 
-                # rotation update from block-specific BackboneUpdate
+                transition_update = self.transitions[i](s, mask)
+                s = s + self.dropout(transition_update)
+                s = self.post_transition_layer_norm(s)
+
                 dR, _ = self.backbone_updates[i](s, mask)
-
-                # translation update from separate block-specific linear head
                 dt = self.translation_heads[i](s) * self.trans_scale_factor
 
                 if mask is not None:
                     dt = dt * mask.unsqueeze(-1)
 
             else:
-                s = s + self.dropout(self.ipa(s, z, R, t, mask)[0])
-                s = s + self.dropout(self.transition(s, mask))
+                ipa_update, _ = self.ipa(s, z, R, t, mask)
+                s = s + self.dropout(ipa_update)
+                s = self.post_ipa_layer_norm(s)
 
-                # shared BackboneUpdate returns both rotation and translation
+                transition_update = self.transition(s, mask)
+                s = s + self.dropout(transition_update)
+                s = self.post_transition_layer_norm(s)
+
                 dR, dt = self.backbone_update(s, mask)
 
                 if mask is not None:
@@ -265,6 +286,7 @@ class StructureModule(nn.Module):
 
         self.last_aux_per_block = aux_per_block.detach()
         self.last_aux_loss = aux_loss.detach()
+
         intermediates = None
         if return_intermediates:
             intermediates = {

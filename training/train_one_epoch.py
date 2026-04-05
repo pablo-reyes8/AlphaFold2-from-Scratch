@@ -162,13 +162,20 @@ def train_one_epoch(
             # Forward
             # -------------------------
             with autocast_ctx(device=device, enabled=amp_enabled, amp_dtype=amp_dtype):
-                out = model(
-                    seq_tokens=batch["seq_tokens"],
-                    msa_tokens=batch["msa_tokens"],
-                    seq_mask=batch["seq_mask"],
-                    msa_mask=batch["msa_mask"],
-                    ideal_backbone_local=ideal_backbone_local,
-                    num_recycles=batch_num_recycles,)
+                model_kwargs = {
+                    "seq_tokens": batch["seq_tokens"],
+                    "msa_tokens": batch["msa_tokens"],
+                    "seq_mask": batch["seq_mask"],
+                    "msa_mask": batch["msa_mask"],
+                    "ideal_backbone_local": ideal_backbone_local,
+                    "num_recycles": batch_num_recycles,
+                    "extra_msa_feat": batch.get("extra_msa_feat"),
+                    "extra_msa_mask": batch.get("extra_msa_mask"),
+                    "template_angle_feat": batch.get("template_angle_feat"),
+                    "template_pair_feat": batch.get("template_pair_feat"),
+                    "template_mask": batch.get("template_mask"),
+                }
+                out = model(**model_kwargs)
 
                 loss_dict = criterion(out, batch)
                 loss = loss_dict["loss"] / grad_accum_steps

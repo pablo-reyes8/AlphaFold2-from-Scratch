@@ -5,3 +5,4 @@ __pycache__/
 *.pyo
 data/af_subset/
 checkpoints*/
+.venv_tmp_data

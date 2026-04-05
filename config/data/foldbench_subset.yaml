@@ -1,6 +1,6 @@
 metadata:
   name: foldbench_subset_50
-  description: Foldbench subset manifest used by the notebooks and smoke tests.
+  description: Foldbench subset manifest used by the notebooks, smoke tests, and the current feature-rich dataloader.
   provenance:
     source_manifest_csv: data/Proteinas_secuencias.csv
     source_note: The checked-in CSV was generated in Colab and stores /content paths.
@@ -23,6 +23,17 @@ dataset:
   keep_only_complete_records: true
   target_limit: 50
   min_identity: 0.85
+  min_template_identity: 0.80
+  max_msa_seqs: 128
+  max_extra_msa_seqs: 256
+  max_templates: 4
+  single_sequence_mode: false
+  extra_msa_sources:
+    - cfdb_hits.a3m
+    - mgnify_hits.sto
+    - uniprot_hits.sto
+    - uniref90_hits.sto
+  template_source: hmm_output.sto plus local reference mmCIF chains
 
 statistics:
   num_records: 50

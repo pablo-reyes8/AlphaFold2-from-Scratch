@@ -132,7 +132,17 @@ def build_dataset_from_config(
         if (manifest_csv or data_cfg.get("manifest_csv"))
         else None,
         max_msa_seqs=int(data_cfg.get("max_msa_seqs", 128)),
+        max_extra_msa_seqs=int(data_cfg.get("max_extra_msa_seqs", 256)),
+        max_templates=int(data_cfg.get("max_templates", 4)),
+        use_a3m_name=str(data_cfg.get("use_a3m_name", "cfdb_hits.a3m")),
         min_identity=float(data_cfg.get("min_identity", 0.85)),
+        min_template_identity=float(data_cfg.get("min_template_identity", 0.80)),
+        crop_size=(
+            None
+            if data_cfg.get("crop_size") in (None, "")
+            else int(data_cfg.get("crop_size"))
+        ),
+        random_crop=bool(data_cfg.get("random_crop", True)),
         single_sequence_mode=bool(data_cfg.get("single_sequence_mode", False)),
         max_samples=max_samples,
         verbose=verbose,

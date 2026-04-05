@@ -1,41 +1,44 @@
 metadata:
-  name: af2_poc
-  description: Minimal notebook-scale experiment updated for extra-MSA and template-aware loading.
-  status: runnable_with_current_repo
+  name: af2_low_vram
+  description: Low-VRAM AF2-style preset for Colab-class GPUs in the 15-20 GB range.
+  status: low_vram_preset
 
 seed: 42
 
 data:
-  manifest_csv: data/Proteinas_secuencias.csv
+  manifest_csv: data/showcase_manifest.csv
   json_path: data/af_subset/jsons/fb_protein.json
   msa_root: data/af_subset/foldbench_msas
   cif_root: data/af_subset/reference_structures
-  max_msa_seqs: 128
-  max_extra_msa_seqs: 256
-  max_templates: 4
+  max_msa_seqs: 32
+  max_extra_msa_seqs: 32
+  max_templates: 1
   use_a3m_name: cfdb_hits.a3m
   min_identity: 0.85
   min_template_identity: 0.80
   single_sequence_mode: false
   loader:
-    batch_size: 2
+    batch_size: 1
     shuffle: true
+    num_workers: 0
+    pin_memory: false
 
 model:
   n_tokens: 27
   pad_idx: 0
   c_m: 256
   c_z: 128
-  c_s: 256
+  c_s: 128
   max_relpos: 32
   num_evoformer_blocks: 2
-  num_structure_blocks: 4
-  dist_bins: 64
-  plddt_bins: 50
-  n_torsions: 3
+  num_structure_blocks: 2
   transition_expansion_evoformer: 2
   transition_expansion_structure: 2
   use_block_specific_params: false
+  dist_bins: 64
+  plddt_bins: 50
+  n_torsions: 3
+  num_res_blocks_torsion: 1
   recycle_min_bin: 3.25
   recycle_max_bin: 20.75
   recycle_dist_bins: 15
@@ -50,11 +53,11 @@ model:
   recycle_position_enabled: true
   extra_msa_dim: 25
   extra_msa_c_e: 64
-  extra_msa_num_blocks: 2
+  extra_msa_num_blocks: 1
   template_angle_dim: 51
   template_pair_dim: 88
   template_c_t: 64
-  template_num_blocks: 2
+  template_num_blocks: 1
   structure_pair_context_enabled: true
   distogram_head_enabled: true
   plddt_head_enabled: true
@@ -64,8 +67,8 @@ loss:
   fape_length_scale: 10.0
   fape_clamp_distance: 10.0
   dist_num_bins: 64
-  dist_min_bin: 2.0
-  dist_max_bin: 22.0
+  dist_min_bin: 2.3125
+  dist_max_bin: 21.6875
   plddt_num_bins: 50
   plddt_inclusion_radius: 15.0
   w_fape: 0.5
@@ -77,14 +80,13 @@ loss:
 optimizer:
   name: AdamW
   lr: 1.0e-4
-  weight_decay: 1.0e-4
-  betas: [0.9, 0.95]
-  eps: 1.0e-8
+  weight_decay: 0.0
+  betas: [0.9, 0.999]
+  eps: 1.0e-5
 
 scheduler:
   name: warmup_cosine
-  warmup_fraction: 0.05
-  warmup_steps_rule: max(10, int(0.05 * total_steps))
+  warmup_fraction: 0.1
   min_lr: 1.0e-6
 
 ema:
@@ -106,8 +108,8 @@ trainer:
   num_recycles: 0
   stochastic_recycling: false
   on_oom: skip
-  ckpt_dir: checkpoints_af2
-  run_name: af2_poc
+  ckpt_dir: checkpoints_af2_low_vram
+  run_name: af2_low_vram
   save_every: 1
   save_last: true
 

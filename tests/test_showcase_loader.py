@@ -65,3 +65,49 @@ def test_showcase_dataset_and_dataloader_expose_template_and_extra_msa_features(
     assert batch["template_mask"].shape == batch["template_angle_feat"].shape[:3]
     assert all(len(chain_ids) >= 1 for chain_ids in batch["template_chain_ids"])
 
+
+def test_showcase_dataset_random_crop_keeps_all_modalities_aligned():
+    dataset = FoldbenchProteinDataset(
+        manifest_csv=str(SHOWCASE_MANIFEST),
+        max_msa_seqs=8,
+        max_extra_msa_seqs=16,
+        max_templates=4,
+        crop_size=64,
+        random_crop=False,
+        verbose=False,
+    )
+
+    sample = dataset[0]
+    assert len(sample["sequence_str"]) == 64
+    assert sample["seq_tokens"].shape == (64,)
+    assert sample["msa_tokens"].shape[1] == 64
+    assert sample["msa_mask"].shape[1] == 64
+    assert sample["coords_n"].shape == (64, 3)
+    assert sample["coords_ca"].shape == (64, 3)
+    assert sample["coords_c"].shape == (64, 3)
+    assert sample["valid_res_mask"].shape == (64,)
+    assert sample["valid_backbone_mask"].shape == (64,)
+    assert sample["torsion_true"].shape == (64, 3, 2)
+    assert sample["torsion_mask"].shape == (64, 3)
+    assert sample["dist_map"].shape == (64, 64)
+    assert sample["extra_msa_feat"].shape[1] == 64
+    assert sample["extra_msa_mask"].shape[1] == 64
+    assert sample["template_angle_feat"].shape[1] == 64
+    assert sample["template_pair_feat"].shape[1:3] == (64, 64)
+    assert sample["template_mask"].shape[1] == 64
+
+    loader = DataLoader(
+        dataset,
+        batch_size=2,
+        shuffle=False,
+        collate_fn=collate_proteins,
+    )
+    batch = next(iter(loader))
+
+    assert batch["seq_tokens"].shape == (2, 64)
+    assert batch["msa_tokens"].shape[-1] == 64
+    assert batch["extra_msa_feat"].shape[2] == 64
+    assert batch["template_angle_feat"].shape[2] == 64
+    assert batch["template_pair_feat"].shape[2:4] == (64, 64)
+    assert batch["coords_ca"].shape == (2, 64, 3)
+    assert batch["dist_map"].shape == (2, 64, 64)

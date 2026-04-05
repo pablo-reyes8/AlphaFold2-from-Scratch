@@ -210,7 +210,8 @@ class AlphaFold2(nn.Module):
         self.structure_module = StructureModule(
             c_s=c_s,
             c_z=c_z,
-            num_blocks=num_structure_blocks , transition_expansion=transition_expansion_structure , use_block_specific_params=use_block_specific_params)
+            num_blocks=num_structure_blocks,
+            use_block_specific_params=use_block_specific_params)
 
         # Cabezas finales para entender el modelo
         self.plddt_head = PlddtHead(c_s=c_s, num_bins=plddt_bins)

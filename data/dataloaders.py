@@ -556,10 +556,12 @@ def build_template_feature_tensors(
     chain_data: dict[str, dict[str, Any]],
     matched_chain_id: str,
     target_sequence: str,
+    identity_target_sequence: str | None = None,
     max_templates: int,
     min_template_identity: float,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[str]]:
     target_len = len(target_sequence)
+    scoring_target_sequence = identity_target_sequence or target_sequence
     if max_templates <= 0:
         empty_angle = torch.zeros((0, target_len, TEMPLATE_ANGLE_FEATURE_DIM), dtype=torch.float32)
         empty_pair = torch.zeros((0, target_len, target_len, TEMPLATE_PAIR_FEATURE_DIM), dtype=torch.float32)
@@ -585,7 +587,7 @@ def build_template_feature_tensors(
         if not candidate_sequence:
             continue
 
-        identity = sequence_identity(target_sequence, candidate_sequence)
+        identity = sequence_identity(scoring_target_sequence, candidate_sequence)
         if identity < min_template_identity:
             continue
 
@@ -847,6 +849,8 @@ class FoldbenchProteinDataset(Dataset):
         max_extra_msa_seqs: int = 256,
         max_templates: int = 4,
         min_template_identity: float = 0.80,
+        crop_size: int | None = None,
+        random_crop: bool = True,
         verbose: bool = True,
     ):
         self.json_path = Path(json_path).expanduser() if json_path is not None else None
@@ -860,6 +864,8 @@ class FoldbenchProteinDataset(Dataset):
         self.min_identity = min_identity
         self.min_template_identity = float(min_template_identity)
         self.single_sequence_mode = bool(single_sequence_mode)
+        self.crop_size = None if crop_size is None else max(1, int(crop_size))
+        self.random_crop = bool(random_crop)
 
         self.manifest_df = self._load_manifest()
         rows, dropped = self._build_index(self.manifest_df)
@@ -959,6 +965,18 @@ class FoldbenchProteinDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
+    def _resolve_crop_bounds(self, length: int) -> tuple[int, int]:
+        if self.crop_size is None or length <= self.crop_size:
+            return 0, length
+
+        crop_size = min(length, self.crop_size)
+        max_start = length - crop_size
+        if max_start <= 0 or not self.random_crop:
+            return 0, crop_size
+
+        start = int(np.random.randint(0, max_start + 1))
+        return start, start + crop_size
+
     def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
 
@@ -1017,7 +1035,23 @@ class FoldbenchProteinDataset(Dataset):
 
         valid_res_mask_np = valid_res_mask_np[:length]
         valid_backbone_mask_np = valid_backbone_mask_np[:length]
-        cropped_target_sequence = target_sequence[:length]
+        full_target_sequence = target_sequence[:length]
+
+        crop_start, crop_end = self._resolve_crop_bounds(length)
+        if crop_start != 0 or crop_end != length:
+            seq_tokens = seq_tokens[crop_start:crop_end]
+            msa_tokens = msa_tokens[:, crop_start:crop_end]
+            msa_mask = msa_mask[:, crop_start:crop_end]
+
+            coords_n_np = coords_n_np[crop_start:crop_end]
+            coords_ca_np = coords_ca_np[crop_start:crop_end]
+            coords_c_np = coords_c_np[crop_start:crop_end]
+
+            valid_res_mask_np = valid_res_mask_np[crop_start:crop_end]
+            valid_backbone_mask_np = valid_backbone_mask_np[crop_start:crop_end]
+
+        cropped_target_sequence = full_target_sequence[crop_start:crop_end]
+        cropped_msa_seqs = [sequence[crop_start:crop_end] for sequence in msa_seqs]
 
         torsion_true, torsion_mask = backbone_torsions_from_coords(
             coords_n=coords_n_np,
@@ -1029,12 +1063,12 @@ class FoldbenchProteinDataset(Dataset):
         extra_msa_records = build_extra_msa_records(
             msa_dir=msa_file.parent,
             target_sequence=cropped_target_sequence,
-            main_msa_seqs=[sequence[:length] for sequence in msa_seqs],
+            main_msa_seqs=cropped_msa_seqs,
             max_extra_msa_seqs=self.max_extra_msa_seqs,
         )
         extra_msa_feat, extra_msa_mask = build_extra_msa_features(
             extra_msa_records,
-            target_len=length,
+            target_len=len(cropped_target_sequence),
         )
 
         template_angle_feat, template_pair_feat, template_mask, template_chain_ids = (
@@ -1044,6 +1078,7 @@ class FoldbenchProteinDataset(Dataset):
                 chain_data=chain_data,
                 matched_chain_id=matched_chain_id,
                 target_sequence=cropped_target_sequence,
+                identity_target_sequence=full_target_sequence,
                 max_templates=self.max_templates,
                 min_template_identity=self.min_template_identity,
             )

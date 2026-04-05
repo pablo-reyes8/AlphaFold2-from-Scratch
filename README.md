@@ -15,7 +15,9 @@
 
 </div>
 
-> **🚧 Development Status:** This repository is a living research environment under active development. We are iterating on core architectural modules, refining the geometric forward pass, and expanding the structural validation suite as we move toward a more complete and inspectable AlphaFold2 design space.
+> **🚧 Development Status:** Active research prototype focused on core architectural modules, geometric forward modeling, and structural validation.
+
+> **⚠️​ Scope:** This implementation aims to reproduce the **deep learning pipeline of AlphaFold2** as faithfully as possible for research. We intentionally omit the final all-atom chemical geometry and side-chain reconstruction pipeline, keeping the repository centered on **DL research, modularity, and controlled experimentation**.
 
 ---
 
@@ -66,6 +68,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 
 - **Foldbench Support:** Includes scripts to download and preprocess a subset of Foldbench.
 - **Config-Driven Experiments:** Main settings such as model size, depth, learning rate, and EMA can be adjusted through YAML files.
+- **Feature-Rich Loader:** The current dataloader returns sequence/MSA tensors plus `extra_msa_feat`, `extra_msa_mask`, `template_angle_feat`, `template_pair_feat`, and `template_mask` when those artifacts are present in the Foldbench assets.
 - **Data Inspection Utilities:** Provides simple CLI tools to inspect manifests, preview A3M files, and visualize CA distance maps before training.
 - **Notebook-Friendly Workflow:** The main walkthrough notebook is [Alpha_Fold_English.ipynb](notebooks/Alpha_Fold_English.ipynb), and a local training-focused version is available in [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb).
 
@@ -404,16 +407,34 @@ python3 scripts/train_model.py \
 
 ### [config/experiments/af2_poc.yaml](config/experiments/af2_poc.yaml)
 
-This config mirrors the current notebook-scale proof of concept and is suitable for smaller experimental runs.
+This config mirrors the current notebook-scale proof of concept and is suitable for smaller experimental runs. It now includes the loader fields for extra MSA and template features used by the current pipeline.
 
 Current example values:
 
 - `max_msa_seqs: 128`
+- `max_extra_msa_seqs: 256`
+- `max_templates: 4`
 - `batch_size: 2`
 - `epochs: 20`
 - `lr: 1e-4`
 - `num_evoformer_blocks: 2`
 - `num_structure_blocks: 4`
+
+### [config/experiments/af2_canonical.yaml](config/experiments/af2_canonical.yaml)
+
+Canonical current-scope preset: 48 Evoformer blocks, 8 structure blocks, `c_m=256`, `c_z=128`, `c_s=384`, recycling enabled, `max_msa_seqs=128`, `max_extra_msa_seqs=1024`, and `max_templates=4`.
+
+### [config/experiments/af2_4xa100.yaml](config/experiments/af2_4xa100.yaml)
+
+Cluster-oriented preset for distributed runs on a typical `4x A100` setup, with moderate trunk width/depth and the full extra-MSA/template path still enabled.
+
+### [config/experiments/af2_single_a100_40gb.yaml](config/experiments/af2_single_a100_40gb.yaml)
+
+Single-GPU preset sized for roughly one `40 GB A100`, keeping template and extra-MSA conditioning but with a smaller trunk than the canonical reference.
+
+### [config/experiments/af2_low_vram.yaml](config/experiments/af2_low_vram.yaml)
+
+Low-VRAM preset for Colab-class GPUs in the `15-20 GB` range, using a reduced trunk, shallow template/extra-MSA stacks, and `data/showcase_manifest.csv` by default.
 
 ### [config/experiments/alphafold2_full_reference.yaml](config/experiments/alphafold2_full_reference.yaml)
 
@@ -441,10 +462,12 @@ This repository is architected with a singular premise: **true understanding of 
 
 Rather than providing a monolithic black box or a superficial tutorial, this codebase is engineered specifically for deep architectural study and rapid ablation. It strips away the distributed production overhead of frameworks like OpenFold to expose the bare mathematical and algorithmic reality of the network.
 
+This implementation is designed to cover the **core deep learning pipeline of AlphaFold2** as faithfully as possible. It includes backbone torsion supervision and template conditioning, while intentionally stopping short of the final all-atom chemical reconstruction, side-chain geometry, and post-processing refinement stack.
+
 **Core Principles:**
 
 - **Architectural Transparency:** Designed to be read, debugged, and mathematically verified at the tensor level. There is no hidden logic; the mapping from the original paper's equations to PyTorch modules is direct and explicit.
-- **Modular Extensibility:** Every mechanism—from the Evoformer's axial attention to the Invariant Point Attention (IPA)—is fully decoupled. Researchers can isolate, modify, or completely redesign structural modules without fighting the framework.
+- **Modular Extensibility:** Every mechanism—from the Evoformer’s axial attention to the Invariant Point Attention (IPA)—is fully decoupled. Researchers can isolate, modify, or completely redesign structural modules without fighting the framework.
 - **Rigorous Prototyping:** Provides a robust, high-fidelity environment for testing novel geometric learning hypotheses, custom attention mechanisms, and alternative structural losses before scaling them to production clusters.
 
 This makes the repository a specialized tool for researchers dissecting structural biology models, engineers debugging complex 3D equivariance, and anyone focused on advancing the theoretical foundations of the AlphaFold family.

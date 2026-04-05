@@ -23,7 +23,7 @@
 
 ## Overview
 
-This repository provides a **from-scratch, modular PyTorch implementation of the core AlphaFold2 architecture**.
+This repository provides a **from-scratch, modular PyTorch implementation of the AlphaFold2 architecture**.
 
 Where the original DeepMind release and frameworks like OpenFold are designed for large-scale production, this project is built for **architectural transparency, research experimentation, and real hands-on understanding**. It breaks the AlphaFold2 pipeline into inspectable, hackable components so researchers and students can study how Multiple Sequence Alignments (MSA), pair representations, Evoformer updates, and geometric heads interact at the tensor level.
 

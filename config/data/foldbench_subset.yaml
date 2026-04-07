@@ -4,7 +4,7 @@ metadata:
   provenance:
     source_manifest_csv: data/Proteinas_secuencias.csv
     source_note: The checked-in CSV was generated in Colab and stores /content paths.
-    refresh_note: Re-run data.preproces_data locally to rewrite paths for your machine.
+    refresh_note: Re-run data.preprocess_data locally to rewrite paths for your machine.
 
 paths:
   dataset_root: data/af_subset

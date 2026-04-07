@@ -144,8 +144,8 @@ def batch(request):
 
         return make_fake_msa_batch(B=2, N_msa=16, L=32, c_m=256, device="cpu")
 
-    if test_file == "test_row_colum_attention.py":
-        from tests.test_row_colum_attention import make_fake_msa_pair_batch
+    if test_file == "test_row_column_attention.py":
+        from tests.test_row_column_attention import make_fake_msa_pair_batch
 
         return make_fake_msa_pair_batch(B=2, N=16, L=32, c_m=256, c_z=128, device="cpu")
 
@@ -185,7 +185,7 @@ def module(request):
 
         return OuterProductMean(c_m=256, c_hidden=32, c_z=128).to("cpu")
 
-    if test_file == "test_row_colum_attention.py":
+    if test_file == "test_row_column_attention.py":
         if test_name.startswith("test_msa_row_attention_"):
             from model.msa_row_attention import MSARowAttentionWithPairBias
 
@@ -196,7 +196,7 @@ def module(request):
                 c_hidden=32,
             ).to("cpu")
 
-        from model.msa_colum_attention import MSAColumnAttention
+        from model.msa_column_attention import MSAColumnAttention
 
         return MSAColumnAttention(
             c_m=256,
@@ -205,7 +205,7 @@ def module(request):
         ).to("cpu")
 
     if test_file == "test_triangle_attention.py":
-        from model.triange_attention import TriangleAttentionStartingNode
+        from model.triangle_attention import TriangleAttentionStartingNode
 
         return TriangleAttentionStartingNode(
             c_z=128,

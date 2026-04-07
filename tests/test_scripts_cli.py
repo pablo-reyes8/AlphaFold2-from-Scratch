@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 import torch
 
@@ -85,7 +86,7 @@ def test_build_dataset_from_config_does_not_rewrite_paths_when_manifest_is_overr
         verbose=False,
     )
 
-    assert captured["manifest_csv"].endswith("data/smoke_one_manifest.csv")
+    assert Path(captured["manifest_csv"]).as_posix().endswith("data/smoke_one_manifest.csv")
     assert captured["msa_root"] is None
     assert captured["cif_root"] is None
     assert captured["json_path"] is None

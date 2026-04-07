@@ -38,7 +38,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     download_cmd.add_argument("--skip-structures", action="store_true")
     download_cmd.add_argument("--aws-bin", type=str, default=None)
 
-    manifest_cmd = subparsers.add_parser("manifest", help="Wrap python -m data.preproces_data.")
+    manifest_cmd = subparsers.add_parser("manifest", help="Wrap python -m data.preprocess_data.")
     manifest_cmd.add_argument("--config", type=str, default="config/data/foldbench_subset.yaml")
     manifest_cmd.add_argument("--json-path", type=str, default=None)
     manifest_cmd.add_argument("--msa-root", type=str, default=None)
@@ -106,7 +106,7 @@ def run_download(args: argparse.Namespace) -> None:
 
 
 def run_manifest(args: argparse.Namespace) -> None:
-    command = [sys.executable, "-m", "data.preproces_data", "--config", args.config]
+    command = [sys.executable, "-m", "data.preprocess_data", "--config", args.config]
 
     optional_args = {
         "--json-path": args.json_path,

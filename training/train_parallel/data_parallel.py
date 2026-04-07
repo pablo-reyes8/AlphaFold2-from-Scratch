@@ -1,4 +1,4 @@
-"""Distributed and data-parallel helpers for multi-GPU AlphaFold training.
+"""Distributed and data-parallel helpers for multi-GPU AlphaFold2 training.
 
 This module centralizes process-group setup, distributed sampler construction,
 DDP wrapping, rank-aware synchronization, and epoch-stat reduction so the core

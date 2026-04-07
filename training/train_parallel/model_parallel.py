@@ -1,4 +1,4 @@
-"""Two-stage model-parallel wrappers for the AlphaFold2 top-level module.
+"""Two-stage model-parallel wrappers for the AlphaFold2 top-level model.
 
 This module keeps Evoformer and recycling updates on a first device, moves the
 structure module plus heads to a second device, and preserves the original

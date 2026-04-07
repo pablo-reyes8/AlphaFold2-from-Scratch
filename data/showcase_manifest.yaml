@@ -1,6 +1,6 @@
 metadata:
   name: foldbench_subset_50
-  generated_by: python -m data.preproces_data
+  generated_by: python -m data.preprocess_data
   keep_only_complete_records: true
 paths:
   manifest_csv: data/showcase_manifest.csv

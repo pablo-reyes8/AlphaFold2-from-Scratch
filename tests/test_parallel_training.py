@@ -7,8 +7,8 @@ from copy import deepcopy
 import torch
 
 from scripts.common import build_ideal_backbone_local, build_model_from_config, load_yaml_config, make_synthetic_batch
-from training.train_paralel.data_parallel import build_parallel_context, sync_epoch_stats
-from training.train_paralel.model_parallel import AlphaFold2ModelParallel
+from training.train_parallel.data_parallel import build_parallel_context, sync_epoch_stats
+from training.train_parallel.model_parallel import AlphaFold2ModelParallel
 
 
 def _tiny_parallel_config() -> dict:

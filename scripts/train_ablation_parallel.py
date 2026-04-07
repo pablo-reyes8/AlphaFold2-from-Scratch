@@ -35,13 +35,13 @@ from scripts.common import (
 from training.ablations import render_ablation_catalog, resolve_training_variant
 from training.seeds import seed_everything
 from training.train_alphafold2 import train_alphafold2
-from training.train_paralel.data_parallel import (
+from training.train_parallel.data_parallel import (
     build_parallel_context,
     build_parallel_train_loader,
     cleanup_parallel_context,
     wrap_model_for_data_parallel,
 )
-from training.train_paralel.model_parallel import build_model_parallel_wrapper
+from training.train_parallel.model_parallel import build_model_parallel_wrapper
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:

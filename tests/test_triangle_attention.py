@@ -6,7 +6,7 @@ import math
 import torch
 import torch.nn as nn
 
-from model.triange_attention import *
+from model.triangle_attention import *
 from tests.test_helpers import (
     assert_close,
     assert_finite_tensor,

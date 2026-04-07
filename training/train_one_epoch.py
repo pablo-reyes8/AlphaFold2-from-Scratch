@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 
 from training.autocast import * 
-from training.efficent_metrics import *
+from training.efficient_metrics import *
 
 
 def move_batch_to_device(batch, device: str):

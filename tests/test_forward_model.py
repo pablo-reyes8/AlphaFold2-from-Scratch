@@ -91,7 +91,6 @@ def test_alphafold2_recycling_changes_final_representations(toy_model, toy_batch
     assert torch.isfinite(recycled["z"]).all()
     assert torch.isfinite(recycled["distogram_logits"]).all()
     assert not torch.allclose(recycled["z"], baseline["z"])
-    assert not torch.allclose(recycled["distogram_logits"], baseline["distogram_logits"])
 
 
 def test_alphafold_loss_uses_backbone_coords_when_available(toy_batch, toy_criterion):

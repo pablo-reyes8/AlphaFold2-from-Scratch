@@ -8,7 +8,7 @@ import torch.nn as nn
 
 import training.train_alphafold2 as train_loop_module
 from training.autocast import get_effective_amp_dtype, normalize_device_type, resolve_amp_dtype
-from training.chekpoints import get_resume_state, load_checkpoint, maybe_save_best_and_last, save_checkpoint
+from training.checkpoints import get_resume_state, load_checkpoint, maybe_save_best_and_last, save_checkpoint
 from training.ema import EMA, ema_health
 from training.scheduler_warmup import WarmupCosineLR, build_alphafold_param_groups
 from training.train_one_epoch import (

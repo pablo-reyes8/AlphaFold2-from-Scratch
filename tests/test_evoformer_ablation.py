@@ -57,7 +57,9 @@ def _stub_block(
     block.tri_attn_start = _ConstantResidual(7.0)
     block.tri_attn_end = _ConstantResidual(8.0)
     block.pair_transition = _ConstantResidual(9.0)
-    block.dropout = nn.Identity()
+    block.msa_row_dropout = nn.Identity()
+    block.pair_row_dropout = nn.Identity()
+    block.pair_col_dropout = nn.Identity()
     return block
 
 

@@ -10,6 +10,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](#installation)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c.svg)](#installation)
+[![CI](https://github.com/pablo-reyes8/alpha-fold2/actions/workflows/ci.yml/badge.svg)](https://github.com/pablo-reyes8/alpha-fold2/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
 [![Status](https://img.shields.io/badge/status-Research%20Prototype-orange)](#project-status)
 
@@ -70,7 +71,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 - **Config-Driven Experiments:** Main settings such as model size, depth, learning rate, and EMA can be adjusted through YAML files.
 - **Feature-Rich Loader:** The current dataloader returns sequence/MSA tensors plus `extra_msa_feat`, `extra_msa_mask`, `template_angle_feat`, `template_pair_feat`, and `template_mask` when those artifacts are present in the Foldbench assets.
 - **Data Inspection Utilities:** Provides simple CLI tools to inspect manifests, preview A3M files, and visualize CA distance maps before training.
-- **Notebook-Friendly Workflow:** The main walkthrough notebook is [Alpha_Fold_English.ipynb](notebooks/Alpha_Fold_English.ipynb), and a local training-focused version is available in [notebooks\train_model_setup_examples.ipynb](notebooks/train_model_local.ipynb).
+- **Notebook-Friendly Workflow:** The main walkthrough notebook is [Alpha_Fold_English.ipynb](notebooks/Alpha_Fold_English.ipynb), and a local training-focused walkthrough is available in [train_model_setup_examples.ipynb](notebooks/train_model_setup_examples.ipynb).
 
 ---
 
@@ -84,7 +85,8 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 ├── data/                      # manifest-based data pipeline plus a tiny bundled showcase subset
 │   ├── download_data.sh
 │   ├── foldbench.py
-│   ├── preproces_data.py
+│   ├── preprocess_data.py
+│   ├── loader_wrappers.py
 │   ├── dataloaders.py
 │   ├── collate_proteins.py
 │   ├── visualize_data.py
@@ -94,7 +96,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 │   └── losses/
 ├── training/                  # single-device training loop, ablation registry, AMP, EMA, checkpoints, and metrics
 │   ├── ablations/             # predefined architecture and loss ablation presets
-│   └── train_paralel/         # DDP and model-parallel helpers
+│   └── train_parallel/        # DDP and model-parallel helpers
 ├── scripts/                   # operational CLIs for data prep, validation, and training
 │   ├── prepare_data.py
 │   ├── inspect_data.py
@@ -108,6 +110,7 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 ├── notebooks/                 # interactive experiments for Colab or local exploration
 ├── paper/                     # reference material from the AlphaFold paper and notes
 ├── assets/                    # README visuals and showcase media
+├── pyproject.toml
 ├── requirements.txt
 ├── Dockerfile
 └── README.md
@@ -116,7 +119,8 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 ### Key files
 
 - [data/download_data.sh](data/download_data.sh) — downloads the Foldbench subset from a target list or CSV input.
-- [data/preproces_data.py](data/preproces_data.py) — rebuilds manifests, normalizes local paths, and emits YAML summaries.
+- [data/preprocess_data.py](data/preprocess_data.py) — rebuilds manifests, normalizes local paths, and emits YAML summaries.
+- [data/loader_wrappers.py](data/loader_wrappers.py) — convenience builders for plain dataloaders and deterministic train/eval splits over one dataset.
 - [data/dataloaders.py](data/dataloaders.py) — dataset layer that maps manifests, mmCIF structures, MSA files, and torsion targets into tensors.
 - [scripts/prepare_data.py](scripts/prepare_data.py) — high-level CLI for downloading data, refreshing manifests, and smoke-testing loaders.
 - [model/alphafold2.py](model/alphafold2.py) — top-level AlphaFold2-like model that wires embeddings, Evoformer, structure, recycling, and heads.
@@ -125,11 +129,12 @@ To make experimentation easier to reproduce, the repository follows a **manifest
 - [model/alphafold2_full_loss.py](model/alphafold2_full_loss.py) — full training loss orchestrator combining FAPE, distogram, pLDDT, and torsion supervision.
 - [model/losses/](model/losses/) — component losses and helpers for geometry-aware supervision.
 - [training/train_one_epoch.py](training/train_one_epoch.py) — per-epoch optimization routine with AMP, recycling, logging, and metric collection.
+- [training/eval_one_epoch.py](training/eval_one_epoch.py) — evaluation loop that mirrors training-time logging without optimizer steps.
 - [training/train_alphafold2.py](training/train_alphafold2.py) — full training orchestrator for checkpointing, resume, monitoring, and epoch scheduling.
 - [training/ablations/catalog.py](training/ablations/catalog.py) — registry of prebuilt architecture and loss ablations resolved on top of a base experiment config.
 - [training/ablations/runtime.py](training/ablations/runtime.py) — resolves baseline or named ablations into a safe config variant without changing the default training path.
-- [training/train_paralel/data_parallel.py](training/train_paralel/data_parallel.py) — DDP utilities, distributed samplers, and rank synchronization helpers.
-- [training/train_paralel/model_parallel.py](training/train_paralel/model_parallel.py) — two-stage model-parallel wrapper for splitting AlphaFold2 across GPUs.
+- [training/train_parallel/data_parallel.py](training/train_parallel/data_parallel.py) — DDP utilities, distributed samplers, and rank synchronization helpers.
+- [training/train_parallel/model_parallel.py](training/train_parallel/model_parallel.py) — two-stage model-parallel wrapper for splitting AlphaFold2 across GPUs.
 - [scripts/train_model.py](scripts/train_model.py) — standard config-driven single-device training launcher.
 - [scripts/train_parallel.py](scripts/train_parallel.py) — multi-GPU launcher for DDP, model parallelism, and hybrid setups.
 - [scripts/train_ablation.py](scripts/train_ablation.py) — single-device launcher for named architecture and loss ablations.
@@ -150,6 +155,9 @@ The repository includes a tiny downloaded test subset under [data/af_subset_show
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
+# Editable install with package metadata and CLI entry points
+pip install -e '.[dev,data]'
 ```
 
 ### 2) Download the subset
@@ -167,7 +175,7 @@ python3 scripts/prepare_data.py download --targets-csv data/Proteinas_secuencias
 ### 3) Rebuild the manifest with local paths
 
 ```bash
-python3 -m data.preproces_data \
+python3 -m data.preprocess_data \
   --config config/data/foldbench_subset.yaml \
   --json-path data/af_subset/jsons/fb_protein.json \
   --msa-root data/af_subset/foldbench_msas \
@@ -203,7 +211,7 @@ dataset = FoldbenchProteinDataset(manifest_csv="data/Proteinas_secuencias.csv")
 
 ### Minimal Python setup
 
-The full notebook [notebooks/train_model_local.ipynb](notebooks/train_model_local.ipynb) exposes many knobs, but the smallest useful training setup looks like this:
+The full notebook [notebooks/train_model_setup_examples.ipynb](notebooks/train_model_setup_examples.ipynb) exposes many knobs, but the smallest useful training setup looks like this:
 
 ```python
 import torch
@@ -443,7 +451,7 @@ Low-VRAM preset for Colab-class GPUs in the `15-20 GB` range, using a reduced tr
 
 This file is a **reference document**, not a statement that the current code already consumes every field end-to-end.
 
-Its role is to provide a structured target for future extension and to document the broader AlphaFold/OpenFold design space.
+Its role is to provide a structured target for future extension and to document the broader AlphaFold/OpenFold design space. It also includes a `current_repo_alignment` section that maps the nested reference schema to the flat config fields consumed by the current codebase.
 
 ---
 

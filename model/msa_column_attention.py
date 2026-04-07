@@ -5,9 +5,10 @@ It complements row attention with pair bias and helps propagate context through
 the MSA dimension of the model.
 """
 
+import math
+
 import torch
 import torch.nn as nn
-import math
 
 from model.msa_transitions import init_gate_linear
 

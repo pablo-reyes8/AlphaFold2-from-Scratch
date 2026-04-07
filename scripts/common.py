@@ -16,10 +16,9 @@ from typing import Any
 
 import torch
 import yaml
-from torch.utils.data import DataLoader
-
 from data.collate_proteins import collate_proteins
 from data.dataloaders import FoldbenchProteinDataset
+from data.loader_wrappers import build_protein_dataloader, build_train_eval_protein_dataloaders
 from model.alphafold2 import AlphaFold2
 from model.alphafold2_full_loss import AlphaFoldLoss
 from training.autocast import build_amp_config
@@ -155,9 +154,9 @@ def build_dataloader_from_config(
     *,
     batch_size: int | None = None,
     shuffle: bool | None = None,
-) -> DataLoader:
+) -> Any:
     loader_cfg = nested_get(config, "data", "loader", default={}) or {}
-    return DataLoader(
+    return build_protein_dataloader(
         dataset,
         batch_size=int(batch_size or loader_cfg.get("batch_size", 1)),
         shuffle=bool(loader_cfg.get("shuffle", True) if shuffle is None else shuffle),
@@ -166,6 +165,49 @@ def build_dataloader_from_config(
         drop_last=bool(loader_cfg.get("drop_last", False)),
         collate_fn=collate_proteins,
     )
+
+
+def build_train_eval_dataloaders_from_config(
+    dataset,
+    config: dict[str, Any],
+    *,
+    batch_size: int | None = None,
+    shuffle: bool | None = None,
+    eval_size: int | None = None,
+):
+    loader_cfg = nested_get(config, "data", "loader", default={}) or {}
+    resolved_eval_size = loader_cfg.get("eval_size", 0) if eval_size is None else eval_size
+    resolved_eval_size = int(resolved_eval_size or 0)
+
+    if resolved_eval_size <= 0:
+        train_loader = build_dataloader_from_config(
+            dataset,
+            config,
+            batch_size=batch_size,
+            shuffle=shuffle,
+        )
+        return train_loader, None, {
+            "train_indices": tuple(range(len(dataset))),
+            "eval_indices": tuple(),
+        }
+
+    split = build_train_eval_protein_dataloaders(
+        dataset,
+        batch_size=int(batch_size or loader_cfg.get("batch_size", 1)),
+        shuffle=bool(loader_cfg.get("shuffle", True) if shuffle is None else shuffle),
+        collate_fn=collate_proteins,
+        eval_size=resolved_eval_size,
+        eval_shuffle=bool(loader_cfg.get("eval_shuffle", False)),
+        split_seed=int(loader_cfg.get("split_seed", 42)),
+        shuffle_before_split=bool(loader_cfg.get("shuffle_before_split", False)),
+        num_workers=int(loader_cfg.get("num_workers", 0)),
+        pin_memory=bool(loader_cfg.get("pin_memory", False)),
+        drop_last=bool(loader_cfg.get("drop_last", False)),
+    )
+    return split.train_loader, split.eval_loader, {
+        "train_indices": split.train_indices,
+        "eval_indices": split.eval_indices,
+    }
 
 
 def summarize_dataset(dataset) -> dict[str, Any]:

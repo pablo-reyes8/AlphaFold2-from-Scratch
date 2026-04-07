@@ -6,6 +6,7 @@ geometric mixing operators inside the Evoformer pair stack.
 """
 
 import math
+
 import torch
 import torch.nn as nn
 

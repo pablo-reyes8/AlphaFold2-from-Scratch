@@ -8,7 +8,7 @@ maintaining last and best checkpoints during training.
 import os
 import random
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import torch
 
@@ -54,6 +54,8 @@ def save_checkpoint(
     best_metric: Optional[float] = None,
     monitor_name: str = "val_loss",
     metrics: Optional[Dict[str, float]] = None,
+    train_metrics: Optional[Dict[str, float]] = None,
+    eval_metrics: Optional[Dict[str, float]] = None,
     config: Optional[Dict[str, Any]] = None,
     save_optimizer_state: bool = True,
     save_rng_state: bool = True):
@@ -63,6 +65,13 @@ def save_checkpoint(
 
     model_to_save = unwrap_model(model)
 
+    if train_metrics is None and eval_metrics is None:
+        train_metrics = metrics
+
+    resolved_metrics = metrics
+    if resolved_metrics is None:
+        resolved_metrics = eval_metrics if eval_metrics is not None else train_metrics
+
     ckpt = {
         "model": model_to_save.state_dict(),
         "ema": _safe_state_dict(ema),
@@ -70,7 +79,9 @@ def save_checkpoint(
         "global_step": int(global_step),
         "best_metric": None if best_metric is None else float(best_metric),
         "monitor_name": monitor_name,
-        "metrics": metrics or {},
+        "metrics": resolved_metrics or {},
+        "train_metrics": train_metrics or {},
+        "eval_metrics": eval_metrics or {},
         "config": config or {},
         "rng_state": get_rng_state() if save_rng_state else None}
 
@@ -93,6 +104,8 @@ def save_weights_only_checkpoint(
     epoch: int = 0,
     global_step: int = 0,
     metrics: Optional[Dict[str, float]] = None,
+    train_metrics: Optional[Dict[str, float]] = None,
+    eval_metrics: Optional[Dict[str, float]] = None,
     monitor_name: str = "val_loss"):
 
     path = Path(path)
@@ -100,12 +113,21 @@ def save_weights_only_checkpoint(
 
     model_to_save = unwrap_model(model)
 
+    if train_metrics is None and eval_metrics is None:
+        train_metrics = metrics
+
+    resolved_metrics = metrics
+    if resolved_metrics is None:
+        resolved_metrics = eval_metrics if eval_metrics is not None else train_metrics
+
     ckpt = {
         "model": model_to_save.state_dict(),
         "ema": _safe_state_dict(ema),
         "epoch": int(epoch),
         "global_step": int(global_step),
-        "metrics": metrics or {},
+        "metrics": resolved_metrics or {},
+        "train_metrics": train_metrics or {},
+        "eval_metrics": eval_metrics or {},
         "monitor_name": monitor_name}
 
     torch.save(ckpt, str(path))
@@ -156,6 +178,8 @@ def get_resume_state(ckpt: Dict[str, Any]):
         "best_metric": ckpt.get("best_metric", None),
         "monitor_name": ckpt.get("monitor_name", "val_loss"),
         "metrics": ckpt.get("metrics", {}),
+        "train_metrics": ckpt.get("train_metrics", {}),
+        "eval_metrics": ckpt.get("eval_metrics", {}),
         "config": ckpt.get("config", {})}
 
 
@@ -184,6 +208,8 @@ def maybe_save_best_and_last(
     metric_name: str,
     mode: str,
     val_metrics: Dict[str, float],
+    train_metrics: Optional[Dict[str, float]] = None,
+    eval_metrics: Optional[Dict[str, float]] = None,
     config: Optional[Dict[str, Any]] = None):
 
     os.makedirs(save_dir, exist_ok=True)
@@ -204,6 +230,8 @@ def maybe_save_best_and_last(
         best_metric=new_best_metric,
         monitor_name=metric_name,
         metrics=val_metrics,
+        train_metrics=train_metrics,
+        eval_metrics=eval_metrics,
         config=config,
         save_optimizer_state=True,
         save_rng_state=True)
@@ -216,6 +244,8 @@ def maybe_save_best_and_last(
             epoch=epoch,
             global_step=global_step,
             metrics=val_metrics,
+            train_metrics=train_metrics,
+            eval_metrics=eval_metrics,
             monitor_name=metric_name)
 
     return new_best_metric, improved

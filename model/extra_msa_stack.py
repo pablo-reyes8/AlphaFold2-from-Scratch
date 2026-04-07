@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from model.custom_dropout import DropoutColumnwise, DropoutRowwise
 from model.msa_row_attention import * 
-from model.triange_attention import * 
+from model.triangle_attention import * 
 from model.triangle_multiplication import * 
 from model.outer_product_mean import *
 from model.msa_transitions import *

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from training.efficent_metrics import compute_structure_metrics
+from training.efficient_metrics import compute_structure_metrics
 
 
 torch.manual_seed(0)

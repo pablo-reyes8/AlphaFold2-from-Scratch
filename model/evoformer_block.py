@@ -10,10 +10,10 @@ import torch.nn as nn
 
 from model.custom_dropout import DropoutColumnwise, DropoutRowwise
 from model.input_embedder import * 
-from model.msa_colum_attention import * 
+from model.msa_column_attention import * 
 from model.msa_row_attention import * 
 from model.msa_transitions import * 
-from model.triange_attention import * 
+from model.triangle_attention import * 
 from model.triangle_multiplication import *
 from model.outer_product_mean import *
 

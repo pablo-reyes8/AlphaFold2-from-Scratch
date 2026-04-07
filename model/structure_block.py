@@ -13,7 +13,7 @@ import math
 
 from model.invariant_point_attention import * 
 from model.ipa_transformations import * 
-from model.structure_transation import * 
+from model.structure_transition import * 
 from model.losses.fape_loss import FAPELoss
 from model.losses.loss_helpers import build_backbone_frames
 from model.msa_transitions import zero_init_linear

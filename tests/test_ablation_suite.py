@@ -13,7 +13,7 @@ from model.alphafold2_full_loss import AlphaFoldLoss
 from model.recycling_module import RecyclingEmbedder
 from scripts.common import load_yaml_config
 from training.ablations import list_ablation_specs, render_ablation_catalog, resolve_training_variant
-from training.train_paralel.model_parallel import AlphaFold2ModelParallel
+from training.train_parallel.model_parallel import AlphaFold2ModelParallel
 
 
 def _tiny_base_config() -> dict:

@@ -1,3 +1,5 @@
+"""Build or normalize Foldbench manifests from local or downloaded assets."""
+
 from __future__ import annotations
 
 import argparse
@@ -171,7 +173,7 @@ def main() -> None:
     summary_payload = {
         "metadata": {
             "name": dataset_name,
-            "generated_by": "python -m data.preproces_data",
+            "generated_by": "python -m data.preprocess_data",
             "keep_only_complete_records": keep_only_complete,
         },
         "paths": {

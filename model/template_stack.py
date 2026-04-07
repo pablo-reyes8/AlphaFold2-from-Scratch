@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from model.custom_dropout import DropoutColumnwise, DropoutRowwise
-from model.triange_attention import * 
+from model.triangle_attention import * 
 from model.triangle_multiplication import *
 from model.msa_transitions import *
 

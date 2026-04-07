@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 from model.quaternion_to_matrix import compose_frames, quaternion_to_rotation_matrix
-from model.structure_transation import BackboneUpdate, StructureTransition
+from model.structure_transition import BackboneUpdate, StructureTransition
 
 # ============================================================
 # TESTS for quaternion_to_rotation_matrix / compose_frames
@@ -123,7 +123,7 @@ def test_structure_transition_shape_and_mask():
     mask = torch.ones(B, L)
     mask[0, -3:] = 0.0
 
-    mod = StructureTransition(c_s=c_s, expansion=4, dropout=0.0)
+    mod = StructureTransition(c_s=c_s, dropout=0.0)
     mod.eval()
 
     out = mod(s, mask=mask)
@@ -288,7 +288,7 @@ def test_structure_transition_deterministic_eval():
     s = torch.randn(B, L, c_s)
     mask = torch.ones(B, L)
 
-    mod = StructureTransition(c_s=c_s, expansion=4, dropout=0.1)
+    mod = StructureTransition(c_s=c_s, dropout=0.1)
     mod.eval()
 
     with torch.no_grad():
@@ -305,7 +305,7 @@ def test_structure_transition_zero_init_outputs_zero_without_mask():
     B, L, c_s = 2, 11, 256
     s = torch.randn(B, L, c_s)
 
-    mod = StructureTransition(c_s=c_s, expansion=4, dropout=0.0)
+    mod = StructureTransition(c_s=c_s, dropout=0.0)
     mod.eval()
 
     out = mod(s, mask=None)
@@ -322,7 +322,7 @@ def test_structure_transition_all_zero_mask_gives_zero():
     s = torch.randn(B, L, c_s)
     mask = torch.zeros(B, L)
 
-    mod = StructureTransition(c_s=c_s, expansion=4, dropout=0.0)
+    mod = StructureTransition(c_s=c_s, dropout=0.0)
     mod.eval()
 
     out = mod(s, mask=mask)
@@ -339,7 +339,7 @@ def test_structure_transition_gradients_finite():
     s = torch.randn(B, L, c_s)
     mask = torch.ones(B, L)
 
-    mod = StructureTransition(c_s=c_s, expansion=4, dropout=0.0)
+    mod = StructureTransition(c_s=c_s, dropout=0.0)
     mod.train()
 
     out = mod(s, mask=mask)
@@ -496,4 +496,3 @@ def run_all_geometry_tests():
     test_backbone_update_input_sensitivity_after_perturbing_weights()
     test_backbone_update_gradients_finite()
     test_backbone_update_zero_init_matches_identity_compose()
-

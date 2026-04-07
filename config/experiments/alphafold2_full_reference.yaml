@@ -10,6 +10,56 @@ metadata:
     - Includes template, extra MSA and auxiliary loss settings that the current repo does not fully consume yet.
     - Training defaults below reflect OpenFold reference settings when explicitly defined.
 
+current_repo_alignment:
+  purpose: Map the nested AlphaFold/OpenFold reference schema to the flat runnable configs under config/experiments/af2_*.yaml.
+  consumed_directly_by_code: false
+  flat_config_equivalents:
+    data.max_msa_seqs: data.initial_training.max_msa_clusters
+    data.max_extra_msa_seqs: data.common.max_extra_msa
+    data.max_templates: globals.max_templates
+    data.crop_size: data.initial_training.crop_size
+    model.c_m: globals.c_m
+    model.c_z: globals.c_z
+    model.c_s: globals.c_s
+    model.max_relpos: globals.max_relative_feature
+    model.num_evoformer_blocks: model.evoformer.no_blocks
+    model.num_structure_blocks: model.structure_module.no_blocks
+    model.recycle_min_bin: model.recycling_embedder.min_bin
+    model.recycle_max_bin: model.recycling_embedder.max_bin
+    model.recycle_dist_bins: model.recycling_embedder.num_bins
+    model.extra_msa_stack_enabled: model.extra_msa.enabled
+    model.extra_msa_dim: model.extra_msa.c_in
+    model.extra_msa_c_e: model.extra_msa.c_out
+    model.extra_msa_num_blocks: model.extra_msa.no_blocks
+    model.template_stack_enabled: model.template.enabled
+    model.template_c_t: globals.c_t
+    model.template_num_blocks: model.template.pair_stack.no_blocks
+    model.dist_bins: heads.distogram.num_bins
+    model.plddt_bins: heads.plddt.num_bins
+    loss.dist_num_bins: heads.distogram.num_bins
+    loss.dist_min_bin: heads.distogram.min_bin
+    loss.dist_max_bin: heads.distogram.max_bin
+    loss.plddt_num_bins: heads.plddt.num_bins
+    loss.plddt_inclusion_radius: heads.plddt.cutoff
+  current_support:
+    implemented:
+      - Evoformer trunk
+      - extra MSA stack
+      - template conditioning
+      - recycling embedder
+      - IPA-based structure module
+      - distogram, pLDDT, and torsion heads/losses
+    partial:
+      - input feature pipeline
+      - template retrieval pipeline
+      - structure-module hyperparameter surface
+    not_yet_implemented:
+      - masked MSA objective
+      - experimentally resolved head
+      - violation loss
+      - TM head
+      - all-atom and side-chain reconstruction
+
 globals:
   c_m: 256
   c_z: 128

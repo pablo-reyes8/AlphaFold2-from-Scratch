@@ -7,7 +7,7 @@ import torch.nn as nn
 
 
 from model.msa_row_attention import *
-from model.msa_colum_attention import *
+from model.msa_column_attention import *
 from tests.test_helpers import (
     assert_close,
     assert_finite_tensor,

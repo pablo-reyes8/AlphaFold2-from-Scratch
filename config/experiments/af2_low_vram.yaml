@@ -20,6 +20,9 @@ data:
   loader:
     batch_size: 1
     shuffle: true
+    eval_size: 1
+    eval_shuffle: false
+    split_seed: 42
     num_workers: 0
     pin_memory: false
 
@@ -112,6 +115,7 @@ trainer:
   run_name: af2_low_vram
   save_every: 1
   save_last: true
+  eval_every: 1
 
 geometry:
   ideal_backbone_local:

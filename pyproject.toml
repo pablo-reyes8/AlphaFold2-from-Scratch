@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "alphafold2-from-scratch"
+version = "0.1.0"
+description = "Modular PyTorch reconstruction of the core AlphaFold2 deep learning pipeline for research and ablations."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Pablo Reyes" }]
+keywords = [
+  "alphafold",
+  "protein-structure-prediction",
+  "deep-learning",
+  "pytorch",
+  "geometric-deep-learning",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "biopython>=1.84,<2",
+  "matplotlib>=3.8,<4",
+  "numpy>=1.26,<3",
+  "pandas>=2.2,<3",
+  "py3Dmol>=2.4,<3",
+  "PyYAML>=6.0,<7",
+  "torch>=2.2,<3",
+]
+
+[project.optional-dependencies]
+data = ["awscli>=1.36,<2"]
+dev = ["pytest>=8,<9"]
+
+[project.scripts]
+af2-prepare-data = "scripts.prepare_data:main"
+af2-inspect-data = "scripts.inspect_data:main"
+af2-validate = "scripts.validate_model:main"
+af2-train = "scripts.train_model:main"
+af2-train-parallel = "scripts.train_parallel:main"
+af2-train-ablation = "scripts.train_ablation:main"
+af2-train-ablation-parallel = "scripts.train_ablation_parallel:main"
+
+[project.urls]
+Homepage = "https://github.com/pablo-reyes8/alpha-fold2"
+Repository = "https://github.com/pablo-reyes8/alpha-fold2"
+Issues = "https://github.com/pablo-reyes8/alpha-fold2/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["data", "data.*", "model", "model.*", "scripts", "scripts.*", "training", "training.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

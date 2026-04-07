@@ -20,13 +20,13 @@ if str(ROOT_DIR) not in sys.path:
 
 from scripts.common import (
     build_amp_runtime,
-    build_dataloader_from_config,
     build_dataset_from_config,
     build_ema_from_config,
     build_ideal_backbone_local,
     build_loss_from_config,
     build_model_from_config,
     build_optimizer_scheduler_from_config,
+    build_train_eval_dataloaders_from_config,
     choose_device,
     count_trainable_parameters,
     load_yaml_config,
@@ -51,6 +51,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--no-amp", action="store_true")
     parser.add_argument("--amp-dtype", type=str, default=None)
     parser.add_argument("--num-recycles", type=int, default=None)
+    parser.add_argument("--eval-size", type=int, default=None)
     parser.add_argument("--stochastic-recycling", action="store_true")
     parser.add_argument("--max-recycles", type=int, default=None)
     return parser.parse_args(argv)
@@ -76,11 +77,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     if len(dataset) == 0:
         raise ValueError("Dataset resolved zero valid examples. Check the manifest and local data paths.")
 
-    loader = build_dataloader_from_config(
+    loader, eval_loader, split_info = build_train_eval_dataloaders_from_config(
         dataset,
         config,
         batch_size=1 if args.dry_run and args.batch_size is None else args.batch_size,
         shuffle=False if args.dry_run else None,
+        eval_size=0 if args.dry_run else args.eval_size,
     )
 
     model = build_model_from_config(config, device=device)
@@ -118,6 +120,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         {
             "device": device,
             "dataset_examples": len(dataset),
+            "train_examples": len(split_info["train_indices"]),
+            "eval_examples": len(split_info["eval_indices"]),
             "loader_batch_size": int(args.batch_size or data_loader_cfg.get("batch_size", 1)),
             "epochs": epochs,
             "max_batches": max_batches,
@@ -133,6 +137,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     train_alphafold2(
         model=model,
         train_loader=loader,
+        eval_loader=eval_loader,
         optimizer=optimizer,
         criterion=criterion,
         scheduler=scheduler,
@@ -157,6 +162,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         run_name=str(trainer_cfg.get("run_name", "alphafold2")),
         save_every=int(trainer_cfg.get("save_every", 1)),
         save_last=bool(trainer_cfg.get("save_last", True)),
+        eval_every=int(trainer_cfg.get("eval_every", 1)),
         monitor_name=str(trainer_cfg.get("monitor_name", "loss")),
         monitor_mode=str(trainer_cfg.get("monitor_mode", "min")),
         config=config,

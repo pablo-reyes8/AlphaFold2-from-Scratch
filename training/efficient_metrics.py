@@ -5,7 +5,7 @@ for logging during training. The goal is to provide cheap structural signals
 without coupling the training loop to notebook utilities.
 """
 
-import torch 
+import torch
 from training.metrics_utils import *
 
 @torch.no_grad()

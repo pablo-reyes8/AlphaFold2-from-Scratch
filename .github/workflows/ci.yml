@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev,data]'
+
+      - name: Run CPU-safe module and data tests
+        run: |
+          python -m pytest -q \
+            tests/test_module_integrity.py \
+            tests/test_ipa.py \
+            tests/test_row_column_attention.py \
+            tests/test_triangle_attention.py \
+            tests/test_triangle_multiplication.py \
+            tests/test_opm.py \
+            tests/test_extra_msa_stack.py \
+            tests/test_template_stack.py \
+            tests/test_metrics.py \
+            tests/test_loader_wrappers.py \
+            tests/test_showcase_loader.py \
+            tests/test_train_eval_orchestration.py \
+            tests/test_eval_one_epoch.py

@@ -18,7 +18,7 @@
 
 > **🚧 Development Status:** Active research prototype focused on core architectural modules, geometric forward modeling, and structural validation.
 
-> **⚠️​ Scope:** This implementation aims to reproduce the **deep learning pipeline of AlphaFold2** as faithfully as possible for research. We intentionally omit the final all-atom chemical geometry and side-chain reconstruction pipeline, keeping the repository centered on **DL research, modularity, and controlled experimentation**.
+> **⚠️​ Scope:** This implementation aims to reproduce the **deep learning pipeline of AlphaFold2** as faithfully as possible for research. We intentionally omit the final all-atom chemical geometry and side-chain reconstruction pipeline, keeping the repository centered on **Deep Learning research, modularity, and controlled experimentation**.
 
 ---
 
